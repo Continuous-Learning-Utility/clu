@@ -1,0 +1,80 @@
+# CLU configuration profile for Python projects
+
+project:
+  name: "python"
+  language: "python"
+  file_extensions: [".py"]
+  source_dir: "src/"
+  framework: "generic"
+
+api:
+  provider: "openai_compat"
+  base_url: "http://localhost:1234/v1"
+  api_key: ""
+  model: "qwen/qwen3-coder-30b"
+
+llm:
+  temperature: 0
+  seed: 42
+  max_tokens: 4096
+  stream: false
+
+budget:
+  max_iterations: 50
+  max_total_tokens: 500000
+  max_context_tokens: 32000
+
+security:
+  allowed_path_prefix: "src/"
+  blocked_prefixes:
+    - ".git/"
+    - ".venv/"
+    - "venv/"
+    - "__pycache__/"
+    - "node_modules/"
+    - ".tox/"
+    - "dist/"
+    - "build/"
+  max_file_read_size: 102400
+  max_file_write_size: 51200
+  max_search_results: 50
+  max_list_results: 200
+
+validation:
+  enabled: false
+  validator: "none"
+
+tools:
+  enabled:
+    - think
+    - read_file
+    - list_files
+    - search_in_files
+    - write_file
+    - memory
+    - delegate
+    - manage_schedules
+
+heartbeat:
+  enabled: true
+  interval: 300
+  auto_fix_on_error: false
+  max_auto_tasks_per_hour: 10
+  large_file_threshold: 400
+  checks:
+    - new_files
+    - todo_markers
+    - large_files
+
+notifications:
+  desktop: false
+  discord_webhook: ""
+  slack_webhook: ""
+
+webhooks:
+  github_secret: ""
+
+paths:
+  backup_dir: "backups"
+  log_dir: "logs"
+  prompts_dir: "prompts"

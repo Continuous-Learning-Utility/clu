@@ -1,0 +1,36 @@
+# Scheduled tasks — cron-like automation for the CLU daemon.
+#
+# Each schedule fires a task template on a cron schedule.
+# Cron format: minute hour day_of_month month day_of_week
+#   day_of_week: 0=Monday ... 6=Sunday
+#
+# Templates are loaded from prompts/task_templates/automation/<template>.md
+
+schedules:
+  - id: compile_check
+    cron: "*/5 * * * *"          # every 5 minutes
+    task_template: auto_fix_compile
+    enabled: true
+    priority: 10
+    description: "Check for compile errors and auto-fix them"
+
+  - id: daily_review
+    cron: "0 9 * * 0-4"         # 9 AM weekdays (Mon-Fri)
+    task_template: code_review
+    enabled: false
+    priority: 0
+    description: "Review recently modified files"
+
+  - id: doc_generation
+    cron: "0 12 * * 4"          # noon on Fridays
+    task_template: generate_docs
+    enabled: false
+    priority: -5
+    description: "Generate XML docs for undocumented public APIs"
+
+  - id: test_generation
+    cron: "0 14 * * 3"          # 2 PM on Wednesdays
+    task_template: test_generation
+    enabled: false
+    priority: -5
+    description: "Generate NUnit tests for untested classes"

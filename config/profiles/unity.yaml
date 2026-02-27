@@ -1,0 +1,87 @@
+project:
+  name: "unity"
+  language: "csharp"
+  file_extensions: [".cs"]
+  source_dir: "Assets/"
+  framework: "unity"
+
+api:
+  provider: "openai_compat"    # openai_compat | anthropic | google
+  base_url: "http://localhost:1234/v1"
+  api_key: ""                  # empty = env var or not needed for local
+  model: "qwen/qwen3-coder-30b"
+
+llm:
+  temperature: 0
+  seed: 42
+  max_tokens: 4096
+  stream: false
+
+budget:
+  max_iterations: 50
+  max_total_tokens: 500000
+  max_context_tokens: 32000
+
+security:
+  allowed_path_prefix: "Assets/"
+  blocked_prefixes:
+    - "Library/"
+    - "Packages/"
+    - "ProjectSettings/"
+    - "UserSettings/"
+    - "Temp/"
+    - "obj/"
+    - "Logs/"
+    - ".git/"
+  max_file_read_size: 102400
+  max_file_write_size: 51200
+  max_search_results: 50
+  max_list_results: 200
+
+validation:
+  enabled: true
+  validator: "csharp"            # "csharp" | "none"
+  unity_dll_path: "C:/Program Files/Unity/Hub/Editor/6000.0.58f2/Editor/Data/Managed/UnityEngine"
+  dotnet_path: "dotnet"
+  lang_version: "9.0"
+  target_framework: "netstandard2.1"
+  validation_timeout: 30
+
+tools:
+  enabled:
+    - think
+    - read_file
+    - list_files
+    - search_in_files
+    - write_file
+    - memory
+    - delegate
+    - validate_csharp
+    - unity_logs
+    - manage_schedules
+
+heartbeat:
+  enabled: true
+  interval: 300                  # seconds between checks when queue is empty
+  auto_fix_on_error: true        # auto-enqueue task when checks detect issues
+  auto_fix_compile_errors: true  # backward compat alias
+  max_auto_tasks_per_hour: 10
+  large_file_threshold: 300      # lines — flag source files exceeding this
+  checks:
+    - unity_compile
+    - new_files
+    - todo_markers
+    - large_files
+
+notifications:
+  desktop: false                 # OS desktop notifications (Windows toast / macOS / Linux)
+  discord_webhook: ""            # Discord webhook URL (leave empty to disable)
+  slack_webhook: ""              # Slack webhook URL (leave empty to disable)
+
+webhooks:
+  github_secret: ""              # GitHub webhook secret for signature verification
+
+paths:
+  backup_dir: "backups"
+  log_dir: "logs"
+  prompts_dir: "prompts"
