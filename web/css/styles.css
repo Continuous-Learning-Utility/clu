@@ -596,6 +596,7 @@ body {
   background: var(--bg);
   flex-shrink: 0;
   overflow-x: auto;
+  min-height: 36px;
 }
 
 .tab-btn {
@@ -603,8 +604,8 @@ body {
   border: none;
   border-bottom: 2px solid transparent;
   color: var(--text2);
-  padding: 6px 8px;
-  font-size: 10px;
+  padding: 8px 14px;
+  font-size: 12px;
   cursor: pointer;
   white-space: nowrap;
   transition: all 0.15s;
@@ -942,6 +943,8 @@ body {
   border-bottom: 1px solid var(--border);
   font-size: 11px;
 }
+.skill-item.skill-disabled { opacity: 0.45; }
+.btn.muted { color: var(--text2); }
 .skill-row {
   display: flex;
   align-items: center;
