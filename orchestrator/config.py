@@ -34,10 +34,14 @@ class AgentConfig:
     max_context_tokens: int = 32_000
 
     # Security settings
-    allowed_path_prefix: str = "Assets/"
+    allowed_path_prefix: str = ""
     blocked_prefixes: list[str] = field(default_factory=lambda: [
-        "Library/", "Packages/", "ProjectSettings/",
-        "UserSettings/", "Temp/", "obj/", "Logs/", ".git/",
+        "C:/Windows", "C:/Program Files", "C:/Program Files (x86)",
+        "/etc", "/bin", "/usr", "/sys", "/proc",
+        ".git",
+    ])
+    write_blocked_prefixes: list[str] = field(default_factory=lambda: [
+        ".clu",
     ])
 
     # Validation settings
@@ -126,9 +130,11 @@ class AgentConfig:
             max_context_tokens=budget.get("max_context_tokens", cls.max_context_tokens),
             allowed_path_prefix=security.get("allowed_path_prefix", cls.allowed_path_prefix),
             blocked_prefixes=security.get("blocked_prefixes", [
-                "Library/", "Packages/", "ProjectSettings/",
-                "UserSettings/", "Temp/", "obj/", "Logs/", ".git/",
+                "C:/Windows", "C:/Program Files", "C:/Program Files (x86)",
+                "/etc", "/bin", "/usr", "/sys", "/proc",
+                ".git",
             ]),
+            write_blocked_prefixes=security.get("write_blocked_prefixes", [".clu"]),
             unity_dll_path=validation.get("unity_dll_path", cls.unity_dll_path),
             dotnet_path=validation.get("dotnet_path", cls.dotnet_path),
             validation_timeout=validation.get("validation_timeout", cls.validation_timeout),

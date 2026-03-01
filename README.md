@@ -54,7 +54,8 @@ CLU: thinks → reads existing code → plans the refactor → writes files → 
 - Hot-swap provider and model from the dashboard
 
 **Skills System**
-- 3-tier extensibility: bundled, user (`~/.clu/skills/`), project (`.clu/skills/`)
+- 4-tier extensibility: bundled, user (`~/.clu/skills/`), project (`.clu/skills/`), registry (`~/.clu/registry-cache/`)
+- Community registry: `https://github.com/Continuous-Learning-Utility/clu-skills`
 - Contextual prompt injection — only relevant skills are loaded, budget-limited
 - SHA-256 integrity checks + secret scanning + prompt injection detection
 - Declarative tests per skill (`skill.yaml`), CLI: `python main.py --skills test`
@@ -62,9 +63,8 @@ CLU: thinks → reads existing code → plans the refactor → writes files → 
 
 **Web Dashboard**
 - Real-time streaming via WebSocket
-- File explorer with syntax-highlighted viewer
 - 8-tab panel: Logs, Tasks, Schedules, Heartbeat, Alerts, Memory, Costs, Skills
-- 45+ REST API endpoints
+- 40+ REST API endpoints
 - Task queue management, schedule CRUD, memory browser, skills viewer
 
 **Integrations**
@@ -73,7 +73,9 @@ CLU: thinks → reads existing code → plans the refactor → writes files → 
 - Unity Editor plugin (optional, for C# projects)
 
 **Security**
-- Configurable sandbox: allowed path prefix + blocklist
+- Configurable sandbox: optional path prefix + blocklist + write-only blocklist
+- Default: unrestricted (no prefix) with OS system dirs blocked (C:/Windows, /etc, /bin…)
+- Write-blocked dirs (`.clu/`) prevent CLU from injecting malicious skill modules
 - Anti-traversal and anti-symlink protection
 - Budget limits: max iterations, max tokens, context window cap
 
@@ -129,10 +131,10 @@ python main.py --daemon stop
 ┌──────────────────────────────────────────────────────────┐
 │                      Web Dashboard                       │
 │              FastAPI + WebSocket (:8080)                  │
-│     ┌──────────┬────────┬──────────┬──────────┐          │
-│     │  Chat    │ Files  │  Tasks   │  Panel   │          │
-│     │ Stream   │ Tree   │  Queue   │  8 tabs  │          │
-│     └──────────┴────────┴──────────┴──────────┘          │
+│     ┌──────────────────────┬──────────────────────┐       │
+│     │       Chat           │        Panel         │       │
+│     │  (Stream / Tasks)    │       (8 tabs)       │       │
+│     └──────────────────────┴──────────────────────┘       │
 └──────────────────────┬───────────────────────────────────┘
                        │
 ┌──────────────────────▼───────────────────────────────────┐
@@ -218,8 +220,16 @@ budget:
   max_context_tokens: 32000
 
 security:
-  allowed_path_prefix: "Assets/"
-  blocked_prefixes: ["Library/", ".git/", ...]
+  allowed_path_prefix: ""             # empty = unrestricted (blocklist only); set "Assets/" for Unity
+  blocked_prefixes:
+    - "C:/Windows"
+    - "C:/Program Files"
+    - "/etc"
+    - "/bin"
+    - "/usr"
+    - ".git"
+  write_blocked_prefixes:
+    - ".clu"
   max_file_read_size: 102400          # 100 KB
   max_file_write_size: 51200          # 50 KB
 
@@ -250,8 +260,7 @@ project:
   framework: "generic"
 
 security:
-  allowed_path_prefix: "src/"
-  blocked_prefixes: [".git/", ".venv/", "__pycache__/", "dist/"]
+  blocked_prefixes: [".git", ".venv", "__pycache__", "dist"]
 
 validation:
   enabled: false
@@ -268,11 +277,10 @@ python main.py --web --config config/profiles/python.yaml
 
 ## Web Dashboard
 
-The dashboard runs at `http://localhost:8080` and provides a 3-column layout:
+The dashboard runs at `http://localhost:8080` and provides a 2-column layout:
 
 | Section | Description |
 |---------|-------------|
-| **Sidebar** | Project path selector + interactive file tree |
 | **Chat** | Real-time agent execution stream (tool calls, results, responses) |
 | **Panel** | 8-tab dashboard (Logs, Tasks, Schedules, Heartbeat, Alerts, Memory, Costs, Skills) |
 
@@ -289,7 +297,7 @@ The dashboard runs at `http://localhost:8080` and provides a 3-column layout:
 
 ### REST API
 
-45+ endpoints available. Key examples:
+40+ endpoints available. Key examples:
 
 ```
 POST /api/tasks               Enqueue a task
@@ -404,7 +412,7 @@ For Unity/C# projects, an optional Editor plugin (`unity_plugin/AgentBridge.cs`)
 # Run all tests
 python -m pytest tests/ -v
 
-# 382 tests across 18 test files
+# 387 tests across 18 test files
 # Covers: agent, daemon, heartbeat, integrations, memory,
 #         multi-agent, providers, resilience, sandbox,
 #         scheduler, tools, manage_schedules,
@@ -459,7 +467,7 @@ CLU/
 │   ├── roles/                 # coder / reviewer / tester
 │   └── task_templates/        # Reusable task templates
 ├── docs/                      # In-depth architecture reference
-├── tests/                     # 382 unit tests (pytest)
+├── tests/                     # 387 unit tests (pytest)
 └── unity_plugin/              # Unity Editor integration (optional)
 ```
 

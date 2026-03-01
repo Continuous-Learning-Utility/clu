@@ -66,7 +66,7 @@ class WriteFileTool(BaseTool):
         full_path = os.path.join(project_path, path)
 
         try:
-            sandbox.validate(full_path, project_path)
+            sandbox.validate(full_path, project_path, mode="write")
         except SandboxViolation as e:
             return {"error": str(e)}
 

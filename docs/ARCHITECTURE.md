@@ -133,7 +133,7 @@ CLU/
 │   └── backup_manager.py            # BackupManager (timestamped backup + rollback)
 │
 ├── web/                             # Web dashboard
-│   ├── server.py                    # FastAPI + WebSocket (45+ REST endpoints incl. /api/skills/*)
+│   ├── server.py                    # FastAPI + WebSocket (40+ REST endpoints incl. /api/skills/*)
 │   ├── index.html                   # Main HTML (8-tab panel layout)
 │   ├── css/styles.css               # Dark theme, responsive, tabs, components
 │   └── js/                          # 16 frontend modules
@@ -142,7 +142,6 @@ CLU/
 │       ├── ui.js                    # Panel toggles, setRunning, addMsg, setBadge
 │       ├── logs.js                  # log(), setLogFilter()
 │       ├── provider.js              # Provider config, test, apply
-│       ├── files.js                 # File tree rendering, filtering, viewing
 │       ├── agent.js                 # sendTask, stopAgent, rollback
 │       ├── sessions.js              # Session management (load, resume, delete)
 │       ├── websocket.js             # WebSocket connection + message handling
@@ -162,7 +161,7 @@ CLU/
 ├── docs/                            # Documentation
 │   └── ARCHITECTURE.md              # This file
 │
-├── tests/                           # 382 unit tests (pytest)
+├── tests/                           # 387 unit tests (pytest)
 │   ├── test_agent.py                # BudgetTracker + MessageHistory + loop detection
 │   ├── test_daemon.py               # TaskQueue + AgentDaemon + DaemonService
 │   ├── test_heartbeat.py            # All checks + HeartbeatManager
@@ -171,7 +170,7 @@ CLU/
 │   ├── test_multiagent.py           # TaskDecomposer + DelegateTool + Roles
 │   ├── test_providers.py            # LLMResponse + Factory + OpenAI compat
 │   ├── test_resilience.py           # Backoff + CircuitBreaker + ResilientProvider
-│   ├── test_sandbox.py              # PathValidator (custom prefix, blocklist)
+│   ├── test_sandbox.py              # PathValidator (custom prefix, blocklist, write-blocked prefixes)
 │   ├── test_scheduler.py            # CronParser + CronExpression + TaskScheduler
 │   ├── test_tools.py                # All tools (read, write, list, search)
 │   ├── test_manage_schedules.py     # ManageSchedulesTool CRUD operations
@@ -297,10 +296,15 @@ THINK → ACT → OBSERVE → repeat → FINISH
 - Templates loaded from `prompts/task_templates/automation/`
 
 ### Sandbox
-- Configurable `allowed_path_prefix` (default: `Assets/` for Unity, `src/` for Python, etc.)
-- Configurable `blocked_prefixes` list
+- `allowed_path_prefix`: restricts CLU to a subdirectory (default: `""` = unrestricted)
+- `blocked_prefixes`: paths CLU can never read or write (OS system dirs by default:
+  C:/Windows, C:/Program Files, /etc, /bin, /usr, /sys, /proc, .git)
+- `write_blocked_prefixes`: CLU can read but never write here (default: `.clu`)
+  → prevents CLU from placing malicious Python modules in skill dirs that SkillLoader
+    would execute on next startup
+- `PathValidator.validate(path, root, mode="read"|"write")` — mode-aware enforcement
 - Anti-traversal (`..`) and anti-symlink protection
-- Max file read/write sizes enforced
+- Max file read/write sizes enforced per config
 
 ### Persistent Memory
 - Daily activity logs: `memory/daily/YYYY-MM-DD.md`
@@ -355,8 +359,16 @@ api:
   model: "qwen/qwen3-coder-30b"
 
 security:
-  allowed_path_prefix: "src/"    # Sandbox root
-  blocked_prefixes: [".git/", ".venv/", "__pycache__/", "dist/"]
+  allowed_path_prefix: ""        # empty = unrestricted (blocklist only); set "Assets/" for Unity
+  blocked_prefixes:
+    - "C:/Windows"
+    - "C:/Program Files"
+    - "/etc"
+    - "/bin"
+    - "/usr"
+    - ".git"
+  write_blocked_prefixes:
+    - ".clu"
 
 tools:
   enabled: [think, read_file, write_file, list_files, search_in_files,
@@ -376,10 +388,9 @@ See `config/profiles/` for complete examples (Unity, Python).
 
 **URL**: `http://localhost:8080`
 
-3-column responsive layout:
-- **Left sidebar**: project path selector + interactive file tree
+2-column responsive layout:
 - **Center**: real-time chat streaming (tool calls, results, responses)
-- **Right panel**: 7-tab dashboard
+- **Right panel**: 8-tab dashboard
 
 ### Tabs
 
@@ -394,7 +405,7 @@ See `config/profiles/` for complete examples (Unity, Python).
 | Costs | Token consumption tracking (by session, aggregated) |
 | Skills | Loaded skills list (tier badge, tools, checks), reload, per-skill tests |
 
-### REST API (45+ endpoints)
+### REST API (40+ endpoints)
 
 ```
 POST /api/tasks                  Enqueue a task (with optional role)
@@ -413,8 +424,6 @@ POST /api/schedules/{id}/toggle  Enable/disable
 
 GET  /api/status                 Provider + project status
 POST /api/project                Set project path
-GET  /api/files                  Project file tree
-GET  /api/file?path=...          File content
 
 POST /api/config/provider        Configure LLM provider
 GET  /api/models                 List available models
@@ -438,7 +447,6 @@ GET  /api/roles                  List agent roles
 
 POST /api/webhooks/github        GitHub webhook receiver
 POST /api/webhooks/generic       Generic webhook receiver
-POST /api/browse/folder          OS folder picker dialog
 POST /api/stop                   Stop running agent
 
 GET  /api/skills                 List all loaded skills with status
@@ -482,6 +490,27 @@ my-skill/
 | project | `<project>/.clu/skills/` | Highest runtime — per-project overrides |
 
 If two tiers define a skill with the same name, the higher-priority tier wins.
+
+### 4th Tier: Community Registry (optional)
+
+CLU can pull prompt-only skills from a public GitHub registry:
+
+| Tier | Location | Notes |
+|------|----------|-------|
+| registry | `~/.clu/registry-cache/` | Downloaded from community GitHub repo |
+
+- **Registry**: `https://github.com/Continuous-Learning-Utility/clu-skills`
+- **Content**: `skill.yaml` + `prompt.md` only (no Python modules — no code execution risk)
+- **Security CI**: Every PR to the registry runs `scripts/validate_skill.py` (GitHub Actions)
+  with the same secret-scanning, injection-detection, and SHA-256 checks as the local SkillLoader
+- **Branch protection**: `main` requires the `validate` check to pass before merge
+
+```yaml
+skills:
+  registry_url: "https://github.com/Continuous-Learning-Utility/clu-skills"
+  registry_sync_enabled: false     # set true to auto-pull
+  registry_sync_interval: 86400    # seconds between syncs (24h)
+```
 
 ### Security
 
@@ -579,7 +608,7 @@ python main.py --web --config config/profiles/python.yaml
 python main.py --daemon start
 
 # Run tests
-python -m pytest tests/ -v    # 382 tests
+python -m pytest tests/ -v    # 387 tests
 ```
 
 ---
