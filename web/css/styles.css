@@ -17,6 +17,11 @@
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
+/* Remove browser number input spinners globally */
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+input[type=number] { -moz-appearance: textfield; appearance: textfield; }
+
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   background: var(--bg);
@@ -1039,22 +1044,30 @@ body {
 .page-content {
   flex: 1;
   overflow-y: auto;
-  padding: 16px;
+  padding: 24px 32px;
+  width: 100%;
+  max-width: 1100px;
+  align-self: center;
 }
 
-/* Logs page: fill space */
+/* Logs page: fill space, full width */
 #page-logs .logs { flex: 1; overflow-y: auto; padding: 8px 12px; }
+
+/* List pages: full width (no max-width constraint) */
+#page-skills .page-content,
+#page-tasks .page-content { max-width: none; padding: 16px; }
 
 /* ===== BUDGET STRIP ===== */
 .budget-strip {
   display: flex;
   align-items: center;
-  gap: 16px;
-  padding: 4px 16px;
+  gap: 24px;
+  padding: 6px 20px;
   border-top: 1px solid var(--border);
   background: var(--bg2);
   flex-shrink: 0;
   font-size: 11px;
+  color: var(--text2);
 }
 
 .budget-item {
