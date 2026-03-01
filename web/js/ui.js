@@ -91,6 +91,7 @@ function switchPage(pageName, btn) {
     alerts: 'initAlerts',
     costs: 'initCosts',
     skills: 'initSkills',
+    context: 'initContext',
     config: 'loadSessions',
   };
   const fn = window[initFnNames[pageName]];

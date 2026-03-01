@@ -20,6 +20,7 @@ from tools.registry import ToolRegistry
 from sandbox.path_validator import PathValidator
 from sandbox.backup_manager import BackupManager
 from skills.manager import SkillManager
+from orchestrator.context_store import ContextStore
 
 logger = logging.getLogger(__name__)
 
@@ -70,6 +71,7 @@ class AgentRunner:
         task_queue=None,
         scheduler=None,
         skill_manager: SkillManager | None = None,
+        context_store: ContextStore | None = None,
     ):
         self.config = config
         # Wrap provider with resilience (retry + circuit breaker)
@@ -82,6 +84,7 @@ class AgentRunner:
         self.memory = MemoryManager()
         self.role = role  # None = default (coder), or "coder"/"reviewer"/"tester"
         self.skill_manager = skill_manager or SkillManager.empty()
+        self.context_store = context_store
 
         self.tools = ToolRegistry()
         self.tools.register_all_defaults(enabled_tools=config.enabled_tools)
@@ -452,6 +455,12 @@ class AgentRunner:
         memory_ctx = self.memory.get_context_for_task("")
         if memory_ctx:
             prompt += f"\n{memory_ctx}"
+
+        # Inject user context items
+        if self.context_store:
+            user_ctx = self.context_store.get_active_text()
+            if user_ctx:
+                prompt += f"\n{user_ctx}"
 
         return prompt
 

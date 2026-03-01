@@ -31,6 +31,7 @@ from daemon import service as daemon_service
 from skills.loader import SkillLoader
 from skills.manager import SkillManager
 from skills.state import SkillStateStore
+from orchestrator.context_store import ContextStore
 
 logger = logging.getLogger(__name__)
 
@@ -46,6 +47,7 @@ _project_path: str | None = None
 _provider: LLMProvider | None = None
 _skill_manager: SkillManager | None = None
 _skill_state: SkillStateStore | None = None
+_context_store: ContextStore | None = None
 
 
 def get_config() -> AgentConfig:
@@ -724,6 +726,63 @@ async def get_costs():
     }
 
 
+# ---- Context endpoints ----
+
+def get_context_store() -> ContextStore:
+    """Get or initialize the global ContextStore for the current project."""
+    global _context_store
+    if _context_store is None:
+        _context_store = ContextStore(project_path=get_project_path() or ".")
+    return _context_store
+
+
+@app.get("/api/context")
+async def list_context():
+    """List all user context items."""
+    store = await asyncio.to_thread(get_context_store)
+    return {"items": [i.to_dict() for i in store.list_items()]}
+
+
+@app.post("/api/context")
+async def create_context_item(request: Request):
+    """Create a new context item."""
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse({"error": "Invalid JSON"}, status_code=400)
+    name = (body.get("name") or "").strip()
+    content = body.get("content") or ""
+    if not name:
+        return JSONResponse({"error": "name is required"}, status_code=400)
+    store = get_context_store()
+    item = store.add_item(name=name, content=content)
+    return {"ok": True, "item": item.to_dict()}
+
+
+@app.put("/api/context/{item_id}")
+async def update_context_item(item_id: str, request: Request):
+    """Update a context item (name, content, or enabled toggle)."""
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse({"error": "Invalid JSON"}, status_code=400)
+    store = get_context_store()
+    updated = store.update_item(item_id, **body)
+    if updated is None:
+        return JSONResponse({"error": "Item not found"}, status_code=404)
+    return {"ok": True, "item": updated.to_dict()}
+
+
+@app.delete("/api/context/{item_id}")
+async def delete_context_item(item_id: str):
+    """Delete a context item."""
+    store = get_context_store()
+    deleted = store.delete_item(item_id)
+    if not deleted:
+        return JSONResponse({"error": "Item not found"}, status_code=404)
+    return {"ok": True}
+
+
 # ---- Skills endpoints ----
 
 def get_state_store() -> SkillStateStore:
@@ -1119,6 +1178,8 @@ async def _run_agent_streaming(
         provider=provider,
         project_path=project_path,
         session_mgr=_session_mgr,
+        skill_manager=get_skill_manager(),
+        context_store=get_context_store(),
     )
 
     async def on_event(event: AgentEvent):
