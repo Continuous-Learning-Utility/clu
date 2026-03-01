@@ -53,12 +53,19 @@ CLU: thinks → reads existing code → plans the refactor → writes files → 
 - Resilient provider with retry, circuit breaker, and failover
 - Hot-swap provider and model from the dashboard
 
+**Skills System**
+- 3-tier extensibility: bundled, user (`~/.clu/skills/`), project (`.clu/skills/`)
+- Contextual prompt injection — only relevant skills are loaded, budget-limited
+- SHA-256 integrity checks + secret scanning + prompt injection detection
+- Declarative tests per skill (`skill.yaml`), CLI: `python main.py --skills test`
+- Bundled: `unity-support`, `todo-tracker`, `code-conventions`
+
 **Web Dashboard**
 - Real-time streaming via WebSocket
 - File explorer with syntax-highlighted viewer
-- 7-tab panel: Logs, Tasks, Schedules, Heartbeat, Alerts, Memory, Costs
-- 40+ REST API endpoints
-- Task queue management, schedule CRUD, memory browser
+- 8-tab panel: Logs, Tasks, Schedules, Heartbeat, Alerts, Memory, Costs, Skills
+- 45+ REST API endpoints
+- Task queue management, schedule CRUD, memory browser, skills viewer
 
 **Integrations**
 - GitHub webhooks (issues → tasks, push → auto-review)
@@ -124,7 +131,7 @@ python main.py --daemon stop
 │              FastAPI + WebSocket (:8080)                  │
 │     ┌──────────┬────────┬──────────┬──────────┐          │
 │     │  Chat    │ Files  │  Tasks   │  Panel   │          │
-│     │ Stream   │ Tree   │  Queue   │  7 tabs  │          │
+│     │ Stream   │ Tree   │  Queue   │  8 tabs  │          │
 │     └──────────┴────────┴──────────┴──────────┘          │
 └──────────────────────┬───────────────────────────────────┘
                        │
@@ -267,7 +274,7 @@ The dashboard runs at `http://localhost:8080` and provides a 3-column layout:
 |---------|-------------|
 | **Sidebar** | Project path selector + interactive file tree |
 | **Chat** | Real-time agent execution stream (tool calls, results, responses) |
-| **Panel** | 7-tab dashboard (Logs, Tasks, Schedules, Heartbeat, Alerts, Memory, Costs) |
+| **Panel** | 8-tab dashboard (Logs, Tasks, Schedules, Heartbeat, Alerts, Memory, Costs, Skills) |
 
 ### Key Capabilities
 
@@ -277,11 +284,12 @@ The dashboard runs at `http://localhost:8080` and provides a 3-column layout:
 - **Alerts**: Notification center with read/unread tracking
 - **Memory**: Browse and edit the agent's persistent knowledge base
 - **Costs**: Track token consumption across sessions
+- **Skills**: View loaded skills, trigger reload, run per-skill tests
 - **Provider Config**: Switch LLM provider/model on the fly
 
 ### REST API
 
-40+ endpoints available. Key examples:
+45+ endpoints available. Key examples:
 
 ```
 POST /api/tasks               Enqueue a task
@@ -396,10 +404,16 @@ For Unity/C# projects, an optional Editor plugin (`unity_plugin/AgentBridge.cs`)
 # Run all tests
 python -m pytest tests/ -v
 
-# 247 tests across 12 test files
+# 382 tests across 18 test files
 # Covers: agent, daemon, heartbeat, integrations, memory,
 #         multi-agent, providers, resilience, sandbox,
-#         scheduler, tools, manage_schedules
+#         scheduler, tools, manage_schedules,
+#         skill_manifest, skill_loader, skill_manager,
+#         skill_integrations, skill_config, skill_test_runner
+
+# Skills CLI
+python main.py --skills list     # List all loaded skills
+python main.py --skills test     # Run declarative skill tests
 ```
 
 ## Project Structure
@@ -427,6 +441,15 @@ CLU/
 │   ├── scheduler.py           # Cron scheduler
 │   ├── checks/                # Heartbeat check plugins
 │   └── webhooks.py            # GitHub + generic webhooks
+├── skills/                    # Extensible skills system
+│   ├── manifest.py            # SkillManifest (SHA-256, keywords, budget)
+│   ├── loader.py              # 3-tier discovery + security scanning
+│   ├── manager.py             # Tool registration + prompt injection
+│   ├── test_runner.py         # Declarative test execution
+│   └── bundled/               # Skills shipped with CLU
+│       ├── unity-support/     # Unity/C# guidelines + compile check
+│       ├── todo-tracker/      # TODO/FIXME scanner
+│       └── code-conventions/  # Generic code quality guidelines
 ├── tools/                     # 12 LLM-callable tools
 ├── sandbox/                   # Path validation + backups
 ├── validation/                # C# validator (optional)
@@ -436,7 +459,7 @@ CLU/
 │   ├── roles/                 # coder / reviewer / tester
 │   └── task_templates/        # Reusable task templates
 ├── docs/                      # In-depth architecture reference
-├── tests/                     # 247 unit tests (pytest)
+├── tests/                     # 382 unit tests (pytest)
 └── unity_plugin/              # Unity Editor integration (optional)
 ```
 
