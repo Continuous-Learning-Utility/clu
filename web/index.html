@@ -11,7 +11,6 @@
 <div class="app">
   <!-- Header -->
   <header class="header">
-    <button class="toggle-btn" id="sidebar-toggle" onclick="toggleSidebar()" title="Files">&#9776;</button>
     <h1>CLU</h1>
     <div class="status-badges">
       <span id="badge-provider" class="badge err clickable" onclick="togglePanel()" title="LLM Configuration">LLM: ---</span>
@@ -21,28 +20,6 @@
     <button class="toggle-btn" id="panel-toggle" onclick="togglePanel()" title="Settings">&#9881;</button>
   </header>
 
-  <!-- Left sidebar -->
-  <aside class="sidebar" id="sidebar">
-    <div class="sidebar-section">
-      <h3>Project</h3>
-      <div class="project-input">
-        <input type="text" id="project-path" placeholder="D:\PROJECTS\MyProject" />
-        <button class="btn" onclick="browseProject()" title="Browse...">&#128193;</button>
-        <button class="btn" onclick="setProject()">OK</button>
-      </div>
-    </div>
-    <div class="tree-search">
-      <input type="text" id="tree-filter" placeholder="Filter files..." oninput="filterTree(this.value)" />
-    </div>
-    <div class="sidebar-section" style="padding:6px 12px;display:flex;align-items:center;justify-content:space-between;">
-      <h3 style="margin:0;">Files</h3>
-      <button class="btn sm" onclick="refreshFiles()">Refresh</button>
-    </div>
-    <div class="file-tree" id="file-tree">
-      <div style="padding:12px;color:var(--text2);font-size:12px;">No project loaded</div>
-    </div>
-  </aside>
-
   <!-- Panel overlay (mobile/tablet) -->
   <div class="panel-overlay" id="panel-overlay" onclick="closeAllPanels()"></div>
 
@@ -50,7 +27,7 @@
   <main class="main">
     <div class="messages" id="messages">
       <div class="msg system-msg">
-        Welcome. Set a project path, then send a task to the agent.
+        Welcome. Configure the LLM provider in the settings panel, then send a task to the agent.
       </div>
     </div>
     <button class="scroll-bottom-btn" id="scroll-btn" onclick="scrollToBottom()">&#8595;</button>
@@ -268,7 +245,6 @@
 <script src="/js/ui.js"></script>
 <script src="/js/logs.js"></script>
 <script src="/js/provider.js"></script>
-<script src="/js/files.js"></script>
 <script src="/js/agent.js"></script>
 <script src="/js/sessions.js"></script>
 <script src="/js/tasks.js"></script>

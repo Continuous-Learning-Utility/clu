@@ -1,26 +1,17 @@
 // ===== PANEL TOGGLING =====
-function toggleSidebar() {
-  document.getElementById('sidebar').classList.toggle('open');
-  document.getElementById('panel').classList.remove('open');
-  updateOverlay();
-}
-
 function togglePanel() {
   document.getElementById('panel').classList.toggle('open');
-  document.getElementById('sidebar').classList.remove('open');
   updateOverlay();
 }
 
 function closeAllPanels() {
-  document.getElementById('sidebar').classList.remove('open');
   document.getElementById('panel').classList.remove('open');
   updateOverlay();
 }
 
 function updateOverlay() {
-  const sOpen = document.getElementById('sidebar').classList.contains('open');
   const pOpen = document.getElementById('panel').classList.contains('open');
-  document.getElementById('panel-overlay').classList.toggle('visible', sOpen || pOpen);
+  document.getElementById('panel-overlay').classList.toggle('visible', pOpen);
 }
 
 // ===== UI HELPERS =====

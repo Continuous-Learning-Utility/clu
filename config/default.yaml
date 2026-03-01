@@ -23,16 +23,19 @@ budget:
   max_context_tokens: 32000
 
 security:
-  allowed_path_prefix: "Assets/"
-  blocked_prefixes:
-    - "Library/"
-    - "Packages/"
-    - "ProjectSettings/"
-    - "UserSettings/"
-    - "Temp/"
-    - "obj/"
-    - "Logs/"
-    - ".git/"
+  allowed_path_prefix: ""       # empty = unrestricted (blocklist only); set e.g. "Assets/" to restrict
+  blocked_prefixes:             # paths CLU can never read or write
+    - "C:/Windows"
+    - "C:/Program Files"
+    - "C:/Program Files (x86)"
+    - "/etc"
+    - "/bin"
+    - "/usr"
+    - "/sys"
+    - "/proc"
+    - ".git"
+  write_blocked_prefixes:       # paths CLU can read but never write
+    - ".clu"
   max_file_read_size: 102400
   max_file_write_size: 51200
   max_search_results: 50

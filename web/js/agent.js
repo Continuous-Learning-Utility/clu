@@ -1,20 +1,20 @@
 // ===== AGENT CONTROL =====
+let currentProject = '';
+
+function setCurrentProject(path) {
+  currentProject = path || '';
+}
+
 function sendTask() {
   const input = document.getElementById('task-input');
   const task = input.value.trim();
   if (!task || isRunning || !ws || ws.readyState !== WebSocket.OPEN) return;
 
-  const project = document.getElementById('project-path').value.trim();
-  if (!project) {
-    addMsg('error', 'Set a Unity project path first.');
-    return;
-  }
-
   addMsg('user', `<div class="msg-label">You</div>${escHtml(task)}`);
   input.value = '';
   input.style.height = 'auto';
 
-  const payload = { action: 'run_task', task, project };
+  const payload = { action: 'run_task', task, project: currentProject || undefined };
   if (lastSessionId) {
     payload.resume_session = lastSessionId;
     log(`Resuming session ${lastSessionId}`, 'info');

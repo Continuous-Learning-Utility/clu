@@ -26,6 +26,7 @@ class PathValidator:
         allowed_roots: list[str] | None = None,
         allowed_prefix: str = "assets",
         blocked_prefixes: list[str] | None = None,
+        write_blocked_prefixes: list[str] | None = None,
     ):
         self.allowed_roots = [
             os.path.normpath(r).lower() for r in (allowed_roots or [])
@@ -35,14 +36,20 @@ class PathValidator:
             p.lower().strip("/").strip("\\")
             for p in (blocked_prefixes if blocked_prefixes is not None else self.DEFAULT_BLOCKED)
         ]
+        self.write_blocked_prefixes = [
+            p.lower().strip("/").strip("\\")
+            for p in (write_blocked_prefixes or [])
+        ]
 
-    def validate(self, full_path: str, project_root: str) -> bool:
+    def validate(self, full_path: str, project_root: str, mode: str = "read") -> bool:
         """
         Validate that full_path is within allowed boundaries.
 
         Args:
             full_path: Absolute path to validate.
             project_root: Absolute path to the project root.
+            mode: "read" or "write". Write operations are checked against
+                  write_blocked_prefixes in addition to the standard blocklist.
 
         Returns:
             True if path is valid.
@@ -78,6 +85,12 @@ class PathValidator:
         for prefix in self.blocked_prefixes:
             if rel_path == prefix or rel_path.startswith(prefix + "/"):
                 raise SandboxViolation(f"Access to {prefix}/ is blocked")
+
+        # Write-only blocklist (protects CLU's own directories from modification)
+        if mode == "write":
+            for prefix in self.write_blocked_prefixes:
+                if rel_path == prefix or rel_path.startswith(prefix + "/"):
+                    raise SandboxViolation(f"Write access to {prefix}/ is blocked")
 
         # Check for symlinks
         if os.path.exists(full_path) and os.path.islink(full_path):

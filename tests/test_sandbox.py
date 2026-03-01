@@ -106,3 +106,48 @@ class TestPathValidatorCustomPrefix:
         path = os.path.join(str(tmp_path), "src", "vendor", "lib.py")
         with pytest.raises(SandboxViolation, match="blocked"):
             validator.validate(path, str(tmp_path))
+
+
+class TestWriteBlockedPrefixes:
+    """Tests for write-only path blocking (protects CLU's own dirs)."""
+
+    def test_write_blocked_raises_on_write(self, tmp_path):
+        """.clu/ dir should be blocked for writes."""
+        (tmp_path / ".clu" / "skills").mkdir(parents=True)
+        (tmp_path / ".clu" / "skills" / "tool.py").write_text("# evil")
+        validator = PathValidator(allowed_prefix="", write_blocked_prefixes=[".clu"])
+        path = os.path.join(str(tmp_path), ".clu", "skills", "tool.py")
+        with pytest.raises(SandboxViolation, match="blocked"):
+            validator.validate(path, str(tmp_path), mode="write")
+
+    def test_write_blocked_allows_read(self, tmp_path):
+        """.clu/ dir should be readable (read mode bypasses write_blocked_prefixes)."""
+        (tmp_path / ".clu" / "skills").mkdir(parents=True)
+        (tmp_path / ".clu" / "skills" / "skill.yaml").write_text("name: x")
+        validator = PathValidator(allowed_prefix="", write_blocked_prefixes=[".clu"])
+        path = os.path.join(str(tmp_path), ".clu", "skills", "skill.yaml")
+        assert validator.validate(path, str(tmp_path), mode="read") is True
+
+    def test_write_blocked_default_mode_is_read(self, tmp_path):
+        """validate() with no mode arg should default to read (not blocked)."""
+        (tmp_path / ".clu").mkdir()
+        (tmp_path / ".clu" / "state.json").write_text("{}")
+        validator = PathValidator(allowed_prefix="", write_blocked_prefixes=[".clu"])
+        path = os.path.join(str(tmp_path), ".clu", "state.json")
+        assert validator.validate(path, str(tmp_path)) is True
+
+    def test_write_allowed_outside_write_blocked(self, tmp_path):
+        """Normal project files should still be writable."""
+        (tmp_path / "src").mkdir()
+        (tmp_path / "src" / "main.py").write_text("# app")
+        validator = PathValidator(allowed_prefix="", write_blocked_prefixes=[".clu"])
+        path = os.path.join(str(tmp_path), "src", "main.py")
+        assert validator.validate(path, str(tmp_path), mode="write") is True
+
+    def test_no_write_blocked_prefixes_allows_all_writes(self, tmp_path):
+        """Without write_blocked_prefixes, all writes within project are allowed."""
+        (tmp_path / ".clu").mkdir()
+        (tmp_path / ".clu" / "tool.py").write_text("# ok")
+        validator = PathValidator(allowed_prefix="")
+        path = os.path.join(str(tmp_path), ".clu", "tool.py")
+        assert validator.validate(path, str(tmp_path), mode="write") is True

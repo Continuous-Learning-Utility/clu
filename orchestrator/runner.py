@@ -91,6 +91,7 @@ class AgentRunner:
         self.sandbox = PathValidator(
             allowed_prefix=config.allowed_path_prefix.strip("/").strip("\\"),
             blocked_prefixes=[p.strip("/").strip("\\") for p in config.blocked_prefixes],
+            write_blocked_prefixes=[p.strip("/").strip("\\") for p in config.write_blocked_prefixes],
         )
         self.backup = BackupManager(
             os.path.join(os.path.dirname(__file__), "..", config.backup_dir)

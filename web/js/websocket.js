@@ -97,7 +97,6 @@ function handleWSMessage(data) {
       loadSessions();
       if (data.files_modified && data.files_modified.length > 0) {
         updateModifiedFiles(data.files_modified);
-        refreshFiles();
       }
       break;
 
