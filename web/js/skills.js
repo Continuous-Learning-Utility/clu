@@ -126,6 +126,12 @@ async function publishSkill(name) {
 }
 
 async function syncRegistry() {
+  const el = document.getElementById('skills-content');
+  const hdr = el && el.querySelector('.skills-header span');
+  if (hdr) hdr.textContent = 'Syncing registry…';
+  else if (el) el.insertAdjacentHTML('beforeend',
+    '<div class="empty-state" id="sync-status">Syncing registry…</div>');
+
   log('Syncing community registry...', 'tool');
   try {
     const r = await fetch('/api/skills/registry/sync', { method: 'POST' });
@@ -134,27 +140,44 @@ async function syncRegistry() {
     const updated = (d.updated || []).length;
     const skipped = (d.skipped || []).length;
     const cls = skipped > 0 ? 'warn' : 'ok';
-    log(`Registry sync: +${added} added, ~${updated} updated, ${skipped} skipped`, cls);
+    const msg = `Registry sync: +${added} added, ~${updated} updated, ${skipped} skipped`;
+    log(msg, cls);
+    if (hdr) hdr.textContent = msg;
+    else { const s = document.getElementById('sync-status'); if (s) s.textContent = msg; }
     if (added + updated > 0) loadSkills();
   } catch (e) {
     log('Registry sync error: ' + e.message, 'err');
+    if (hdr) hdr.textContent = 'Registry sync error — see Logs';
+    else { const s = document.getElementById('sync-status'); if (s) s.textContent = 'Sync error'; }
   }
 }
 
 async function analyzePatterns() {
-  log('Analyzing task patterns...', 'tool');
   const el = document.getElementById('skills-content');
+  const statusId = 'pattern-status';
+  const existingStatus = document.getElementById(statusId);
+  if (existingStatus) existingStatus.remove();
+  const statusHtml = `<div class="empty-state" id="${statusId}">Analyzing patterns…</div>`;
+  const existingList = el && el.querySelector('.skills-list');
+  if (existingList) existingList.insertAdjacentHTML('afterend', statusHtml);
+  else if (el) el.insertAdjacentHTML('beforeend', statusHtml);
+
+  log('Analyzing task patterns...', 'tool');
   try {
     const r = await fetch('/api/skills/candidates');
     const d = await r.json();
     const candidates = d.candidates || [];
     const total = d.total_outcomes || 0;
+    const ps = document.getElementById(statusId);
 
     if (!candidates.length) {
-      log(`Pattern analysis: ${total} outcomes, no candidates yet (need more task data)`, 'warn');
+      const msg = `${total} outcome${total !== 1 ? 's' : ''} recorded — need more task data to find patterns`;
+      log(`Pattern analysis: ${msg}`, 'warn');
+      if (ps) ps.textContent = msg;
       return;
     }
 
+    if (ps) ps.remove();
     log(`Found ${candidates.length} skill candidate(s) from ${total} outcomes`, 'ok');
 
     // Render candidate cards below the existing skills list

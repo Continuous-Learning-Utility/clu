@@ -9,7 +9,8 @@ function renderFileTree(tree, depth) {
 function renderTreeItems(items, container, depth) {
   for (const item of items) {
     const el = document.createElement('div');
-    el.className = `tree-item ${item.type === 'directory' ? 'dir' : 'file'} ${item.name.endsWith('.cs') ? 'cs' : ''}`;
+    const ext = item.name.includes('.') ? item.name.split('.').pop().toLowerCase() : '';
+    el.className = `tree-item ${item.type === 'directory' ? 'dir' : 'file'}${ext ? ' ext-' + ext : ''}`;
     el.style.setProperty('--depth', depth);
     el.dataset.name = item.name.toLowerCase();
 
@@ -33,7 +34,8 @@ function renderTreeItems(items, container, depth) {
         renderTreeItems(item.children, childContainer, depth + 1);
       }
     } else {
-      const icon = item.name.endsWith('.cs') ? 'C#' : '&#128196;';
+      const ext2 = item.name.includes('.') ? item.name.split('.').pop().toUpperCase() : '';
+      const icon = ext2 ? `<span class="file-ext">${escHtml(ext2)}</span>` : '&#128196;';
       el.innerHTML = `<span class="icon">${icon}</span>${escHtml(item.name)}`;
       el.onclick = () => viewFile(item.path);
       container.appendChild(el);
