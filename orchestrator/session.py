@@ -32,10 +32,12 @@ class SessionManager:
         task: str,
         budget_state: dict,
         files_modified: list[dict],
+        name: str = "",
     ):
         """Save a session to disk."""
         session = {
             "id": session_id,
+            "name": name or task[:50],
             "project": project_path,
             "task": task,
             "created": datetime.now().isoformat(),
@@ -81,6 +83,7 @@ class SessionManager:
 
                 sessions.append({
                     "id": data["id"],
+                    "name": data.get("name", data.get("task", "")[:50]),
                     "project": data.get("project", ""),
                     "task": data.get("task", "")[:100],
                     "created": data.get("created", ""),
@@ -100,6 +103,18 @@ class SessionManager:
             os.remove(path)
             return True
         return False
+
+    def rename(self, session_id: str, new_name: str) -> bool:
+        """Rename a session."""
+        path = os.path.join(self.sessions_dir, f"{session_id}.json")
+        if not os.path.isfile(path):
+            return False
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        data["name"] = new_name.strip()[:100]
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+        return True
 
     def generate_id(self) -> str:
         """Generate a unique session ID."""

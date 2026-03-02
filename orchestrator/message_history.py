@@ -9,8 +9,9 @@ class MessageHistory:
     while keeping the system prompt and the last N exchanges intact.
     """
 
-    def __init__(self, max_tokens: int = 32_000):
+    def __init__(self, max_tokens: int = 32_000, read_only_threshold: int = 8):
         self.max_tokens = max_tokens
+        self._read_only_threshold = read_only_threshold
         self._messages: list[dict] = []
         self._system: str | None = None
 
@@ -125,9 +126,10 @@ class MessageHistory:
                     if tail == prev:
                         return f"cycle_{cycle_len}"
 
-        # 3. Read-only spinning: last 8+ tool calls are all read/list/search with no write
-        names = self.last_n_tool_names(10)
-        if len(names) >= 8:
+        # 3. Read-only spinning: all recent tool calls are read/list/search with no write
+        window = self._read_only_threshold + 2
+        names = self.last_n_tool_names(window)
+        if len(names) >= self._read_only_threshold:
             read_only = [n for n in names if n in ("read_file", "list_files", "search_in_files", "think")]
             if len(read_only) == len(names):
                 return "read_only_spinning"

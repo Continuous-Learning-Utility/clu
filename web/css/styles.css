@@ -75,10 +75,19 @@ body {
 .header .status-badges {
   display: flex;
   gap: 8px;
+  align-items: center;
   margin-left: auto;
   flex-wrap: wrap;
   justify-content: flex-end;
 }
+.badge-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.badge-dot.ok { background: var(--success); }
+.badge-dot.err { background: var(--error); }
 
 .badge {
   font-size: 11px;
@@ -454,36 +463,34 @@ body {
 
 .modified-item::before { content: "~"; color: var(--warning); }
 
-/* Sessions */
+/* Session strip (Chat page) */
+.session-strip { border-top: 1px solid var(--border); background: var(--bg2); }
+.session-strip-header {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 16px; cursor: pointer;
+  font-size: 11px; color: var(--text2); text-transform: uppercase;
+  letter-spacing: 0.3px; user-select: none;
+}
+.session-strip-arrow { margin-left: auto; font-size: 10px; }
+.session-strip-list { max-height: 200px; overflow-y: auto; padding: 0 16px 8px; }
+
 .session-item {
-  padding: 4px 0;
-  border-bottom: 1px solid var(--border);
-  cursor: pointer;
-  font-size: 11px;
-  font-family: var(--mono);
-  display: flex;
-  align-items: flex-start;
-  gap: 4px;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 6px 0; border-bottom: 1px solid var(--border); gap: 8px;
 }
-
-.session-item:hover { background: rgba(255,255,255,0.03); }
-.session-item .session-info { flex: 1; min-width: 0; }
-.session-item .session-id { color: var(--accent); }
-.session-item .session-date { color: var(--text2); }
-.session-item .session-task { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-
-.session-delete {
-  background: none;
-  border: none;
-  color: var(--error);
-  cursor: pointer;
-  font-size: 12px;
-  padding: 2px;
-  opacity: 0.5;
-  flex-shrink: 0;
+.session-item:last-child { border-bottom: none; }
+.session-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.session-name {
+  font-size: 12px; color: var(--text); white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis;
+  cursor: text; outline: none;
+  border-bottom: 1px dashed transparent;
+  padding: 1px 0;
 }
-
-.session-delete:hover { opacity: 1; }
+.session-name:hover { border-bottom-color: var(--border); }
+.session-name:focus { border-bottom-color: var(--accent); color: var(--accent); }
+.session-date { font-size: 10px; color: var(--text2); }
+.session-actions { display: flex; gap: 4px; flex-shrink: 0; }
 
 /* Logs */
 .logs-section { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
@@ -1123,10 +1130,7 @@ body {
   padding: 16px;
 }
 
-#sessions-list {
-  padding-right: 6px;
-  scrollbar-gutter: stable;
-}
+/* (sessions moved to chat-side strip) */
 
 .config-section h2 {
   font-size: 12px;
@@ -1138,6 +1142,21 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
+}
+
+/* ===== FEATURE TOGGLES ===== */
+.feature-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 0;
+}
+.feature-row label { font-size: 12px; color: var(--text); }
+.feature-row input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
+  cursor: pointer;
 }
 
 /* ===== RESPONSIVE ===== */
@@ -1169,7 +1188,7 @@ body {
   .header h1 { font-size: 13px; }
   .header { padding: 0 8px; gap: 6px; }
   .badge { font-size: 10px; padding: 2px 8px; }
-  .status-badges .badge-secondary { display: none; }
+  .status-badges .badge-dot { display: none; }
 
   .panel { width: 85vw; max-width: 340px; }
 
@@ -1277,7 +1296,7 @@ body {
 @media (max-width: 768px) {
   .nav-btn { padding: 0 10px; font-size: 12px; }
   .status-badges { gap: 4px; }
-  .status-badges .badge-secondary { display: none; }
+  .status-badges .badge-dot { display: none; }
 }
 
 @media (max-width: 480px) {

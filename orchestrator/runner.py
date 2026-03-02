@@ -16,6 +16,7 @@ from orchestrator.tool_dispatcher import ToolDispatcher
 from orchestrator.session import SessionManager
 from orchestrator.providers.base import LLMProvider
 from orchestrator import events as evt
+from orchestrator.exceptions import ContextOverflowError
 from tools.registry import ToolRegistry
 from sandbox.path_validator import PathValidator
 from sandbox.backup_manager import BackupManager
@@ -86,12 +87,22 @@ class AgentRunner:
         self.skill_manager = skill_manager or SkillManager.empty()
         self.context_store = context_store
 
+        self._llm_profile = self._resolve_llm_profile()
+        logger.info("LLM profile: %s", self._llm_profile)
+
         self.tools = ToolRegistry()
         self.tools.register_all_defaults(enabled_tools=config.enabled_tools)
         self._setup_delegate_tool(task_queue)
         self._setup_schedules_tool(scheduler)
         self._setup_context_tool()
         self.skill_manager.register_tools(self.tools, role=self.role)
+
+        # Compact profile: keep only core tools
+        if self._llm_profile == "compact":
+            core = {"think", "read_file", "write_file", "list_files", "search_in_files"}
+            for name in list(self.tools.names):
+                if name not in core:
+                    self.tools.unregister(name)
         self.sandbox = PathValidator(
             allowed_prefix=config.allowed_path_prefix.strip("/").strip("\\"),
             blocked_prefixes=[p.strip("/").strip("\\") for p in config.blocked_prefixes],
@@ -100,7 +111,10 @@ class AgentRunner:
         self.backup = BackupManager(
             os.path.join(os.path.dirname(__file__), "..", config.backup_dir)
         )
-        self.history = MessageHistory(max_tokens=config.max_context_tokens)
+        self.history = MessageHistory(
+            max_tokens=config.max_context_tokens,
+            read_only_threshold=15 if self._llm_profile == "compact" else 8,
+        )
         self.budget = BudgetTracker(
             max_iterations=config.max_iterations,
             max_total_tokens=config.max_total_tokens,
@@ -112,6 +126,13 @@ class AgentRunner:
         self._loop_warnings = 0
         self._write_mode = False
         self._checkpoint_interval = 5  # Save checkpoint every N iterations
+
+    def _resolve_llm_profile(self) -> str:
+        """Resolve the effective LLM profile (auto/compact/default)."""
+        profile = self.config.llm_profile
+        if profile == "auto":
+            return "compact" if self.config.max_context_tokens <= 8192 else "default"
+        return profile
 
     def _setup_delegate_tool(self, task_queue):
         """Register the delegate tool and wire its queue reference."""
@@ -144,6 +165,7 @@ class AgentRunner:
     ) -> AgentResult:
         """Execute a task against a project, emitting events via callback."""
         session_id = self.session_mgr.generate_id()
+        self._session_name = task[:50]
 
         async def emit(event: evt.AgentEvent):
             if on_event:
@@ -157,6 +179,7 @@ class AgentRunner:
         if resume_session_id:
             prev = self.session_mgr.load(resume_session_id)
             if prev and prev.get("messages"):
+                self._session_name = prev.get("name", task[:50])
                 for msg in prev["messages"]:
                     if msg.get("role") == "system":
                         continue
@@ -227,6 +250,21 @@ class AgentRunner:
                     temperature=self.config.temperature,
                     seed=self.config.seed,
                     max_tokens=self.config.max_tokens,
+                )
+            except ContextOverflowError as e:
+                logger.error("Context overflow: %s", e)
+                await emit(evt.error(
+                    f"System prompt too large for model context window "
+                    f"({self.config.max_context_tokens} tokens). "
+                    "Increase context length in LLM settings or reduce user context/skills."
+                ))
+                return AgentResult(
+                    success=False,
+                    error=str(e),
+                    iterations=self.budget.iteration,
+                    tokens=self.budget.total_tokens,
+                    session_id=session_id,
+                    files_modified=self.backup.modified_files,
                 )
             except Exception as e:
                 logger.error("LLM error: %s", e)
@@ -331,12 +369,19 @@ class AgentRunner:
                 elif self._loop_warnings >= 2:
                     self._write_mode = True
                     write_tools = ", ".join(self.tools.get_write_mode_tools())
-                    self.history.add_user(
-                        "WRITE MODE ACTIVATED. read_file, list_files, and search_in_files "
-                        f"have been REMOVED. You can ONLY use: {write_tools}. "
-                        "You have already read all the files you need. "
-                        "Use write_file NOW to implement your changes, or respond with a summary to finish."
-                    )
+                    if self._llm_profile == "compact":
+                        self.history.add_user(
+                            "WRITE MODE. You can ONLY use: think and write_file. "
+                            "Example: write_file(path='file.txt', content='your content here'). "
+                            "Do it NOW or respond with a summary to finish."
+                        )
+                    else:
+                        self.history.add_user(
+                            "WRITE MODE ACTIVATED. read_file, list_files, and search_in_files "
+                            f"have been REMOVED. You can ONLY use: {write_tools}. "
+                            "You have already read all the files you need. "
+                            "Use write_file NOW to implement your changes, or respond with a summary to finish."
+                        )
                     await emit(evt.warning("WRITE MODE — read tools removed"))
                 else:
                     self.history.add_user(
@@ -392,6 +437,7 @@ class AgentRunner:
             task=task,
             budget_state=self.budget.status(),
             files_modified=self.backup.modified_files,
+            name=self._session_name,
         )
 
     def _record_outcome(self, task: str, session_id: str, success: bool) -> None:
@@ -428,7 +474,21 @@ class AgentRunner:
         """Load system prompt from file and inject project context."""
         prompts_base = os.path.join(os.path.dirname(__file__), "..", self.config.prompts_dir)
 
-        # Try profile-specific → generic profile → legacy system_prompt.md
+        # Compact profile: use compact.md, skip optional injections
+        if self._llm_profile == "compact":
+            compact_path = os.path.join(prompts_base, "profiles", "compact.md")
+            if os.path.isfile(compact_path):
+                with open(compact_path, "r", encoding="utf-8") as f:
+                    base_prompt = f.read()
+            else:
+                base_prompt = (
+                    "You are an autonomous coding agent. "
+                    "Call think() before every action. Use write_file to create files. "
+                    "Respond with a text summary when done."
+                )
+            return f"{base_prompt}\n\n## Project Context\n- Project path: {self.project_path}\n"
+
+        # Default profile: full prompt cascade with all injections
         candidates = [
             os.path.join(prompts_base, "profiles", f"{self.config.project_name}.md"),
             os.path.join(prompts_base, "profiles", "generic.md"),
@@ -473,13 +533,52 @@ class AgentRunner:
 
         return prompt
 
+    # System prompt should use at most 50% of context window
+    # (leaving room for tool schemas, conversation history, and response)
+    PROMPT_BUDGET_RATIO = 0.5
+
     def _build_system_prompt_for_task(self, task: str) -> str:
         """Build system prompt with contextual skill injections for a specific task."""
         base = self._build_system_prompt()
+        # Compact profile: skip skill injections entirely
+        if self._llm_profile == "compact":
+            return self._enforce_prompt_budget(base)
         skill_ctx = self.skill_manager.get_prompt_injections(task)
         if skill_ctx:
-            return f"{base}\n\n{skill_ctx}"
-        return base
+            base = f"{base}\n\n{skill_ctx}"
+        return self._enforce_prompt_budget(base)
+
+    def _enforce_prompt_budget(self, prompt: str) -> str:
+        """Trim optional sections if the system prompt exceeds the context budget.
+
+        Uses conservative token estimation (3 chars ≈ 1 token) and strips
+        sections in order of decreasing expendability:
+        skills → memory → user context.
+        """
+        budget = int(self.config.max_context_tokens * self.PROMPT_BUDGET_RATIO)
+        if budget <= 0 or len(prompt) // 3 <= budget:
+            return prompt
+
+        logger.warning(
+            "System prompt too large (~%d tokens, budget %d). Trimming optional sections.",
+            len(prompt) // 3, budget,
+        )
+
+        # Strip in priority order (least important first)
+        strip_markers = [
+            "\n\n## Skill Context",
+            "\n## Agent Memory",
+            "\n## User Context",
+        ]
+        for marker in strip_markers:
+            idx = prompt.find(marker)
+            if idx >= 0:
+                prompt = prompt[:idx]
+                logger.info("Stripped '%s' section from system prompt", marker.strip())
+                if len(prompt) // 3 <= budget:
+                    break
+
+        return prompt
 
     def _is_false_completion(self, content: str) -> bool:
         """Detect when the LLM responds with intent text instead of using tools."""

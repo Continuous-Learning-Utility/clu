@@ -78,6 +78,8 @@ CLU: thinks → reads existing code → plans the refactor → writes files → 
 - Write-blocked dirs (`.clu/`) prevent CLU from injecting malicious skill modules
 - Anti-traversal and anti-symlink protection
 - Budget limits: max iterations, max tokens, context window cap
+- Context overflow prevention: auto-trims prompt sections when exceeding model context window
+- LLM profiles (`auto`/`compact`/`default`): adapts prompt size, tools, and thresholds for small local models
 
 ## Quick Start
 
@@ -196,11 +198,11 @@ CLU uses a single YAML configuration file. The default config is tuned for Unity
 
 ```yaml
 project:
-  name: "unity"
-  language: "csharp"
-  file_extensions: [".cs"]
-  source_dir: "Assets/"
-  framework: "unity"
+  name: "generic"
+  language: "any"
+  file_extensions: []                   # empty = scan all files
+  source_dir: ""                        # empty = project root
+  framework: "generic"
 
 api:
   provider: "openai_compat"           # openai_compat | anthropic | google
@@ -213,6 +215,7 @@ llm:
   seed: 42
   max_tokens: 4096
   stream: false                       # MUST be false for tool calling
+  profile: "auto"                     # auto | compact | default
 
 budget:
   max_iterations: 50
@@ -296,6 +299,9 @@ The dashboard runs at `http://localhost:8080` and provides a 2-column layout:
 - **Skills**: View loaded skills, trigger reload, run per-skill tests
 - **Context**: Manage persistent context rules (scope: always / coder / reviewer / tester) injected into every agent run
 - **Provider Config**: Switch LLM provider/model on the fly
+- **Feature Toggles**: Enable/disable heartbeat, validation, skills, auto-fix, auto-generate from the UI
+- **Project Settings**: Configure source directory, language, file extensions at runtime
+- **Sessions**: Collapsible session picker in Chat with inline rename and resume
 
 ### REST API
 
@@ -308,6 +314,9 @@ GET  /api/heartbeat           Heartbeat status
 POST /api/heartbeat/trigger   Manual heartbeat
 GET  /api/schedules           List schedules
 POST /api/config/provider     Switch LLM provider
+POST /api/config/features     Toggle features (heartbeat, validation, skills…)
+POST /api/config/profile      Switch LLM profile (auto/compact/default)
+POST /api/sessions/{id}/rename  Rename a session
 GET  /api/models              List available models
 POST /api/webhooks/github     GitHub webhook receiver
 WS   /ws/agent                WebSocket for streaming execution

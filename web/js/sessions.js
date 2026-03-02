@@ -3,20 +3,29 @@ async function loadSessions() {
   try {
     const r = await fetch('/api/sessions');
     const d = await r.json();
-    const el = document.getElementById('sessions-list');
-    if (!d.sessions || d.sessions.length === 0) {
-      el.innerHTML = '<div style="color:var(--text2);font-size:11px;">No sessions</div>';
+    const list = document.getElementById('session-strip-list');
+    const count = document.getElementById('session-strip-count');
+    if (!list) return;
+    const sessions = (d.sessions || []).slice(0, 10);
+    if (count) count.textContent = sessions.length;
+    if (sessions.length === 0) {
+      list.innerHTML = '<div style="color:var(--text2);font-size:11px;padding:4px 0;">No sessions yet</div>';
       return;
     }
-    el.innerHTML = d.sessions.slice(0, 10).map(s => {
-      const date = s.created ? new Date(s.created).toLocaleString('en-US', {day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'}) : '?';
-      const task = escHtml(s.task || '').substring(0, 40);
-      return `<div class="session-item">
-        <div class="session-info" onclick="resumeSession('${s.id}')">
-          <span class="session-id">${s.id}</span> <span class="session-date">${date}</span>
-          <span class="session-task">${task}</span>
+    list.innerHTML = sessions.map(s => {
+      const name = escHtml(s.name || (s.task || '').slice(0, 40));
+      const date = s.created ? new Date(s.created).toLocaleString('en-US', {month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit'}) : '';
+      return `<div class="session-item" id="sess-${escHtml(s.id)}">
+        <div class="session-info">
+          <span class="session-name" contenteditable="true"
+                onblur="renameSession('${escHtml(s.id)}', this.textContent)"
+                onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">${name}</span>
+          <span class="session-date">${date}</span>
         </div>
-        <button class="session-delete" onclick="deleteSession('${s.id}')" title="Delete">&#10005;</button>
+        <div class="session-actions">
+          <button class="btn sm" onclick="resumeSession('${escHtml(s.id)}')">Resume</button>
+          <button class="btn sm danger" onclick="deleteSession('${escHtml(s.id)}')">&#10005;</button>
+        </div>
       </div>`;
     }).join('');
   } catch (e) {
@@ -24,19 +33,109 @@ async function loadSessions() {
   }
 }
 
+function toggleSessionStrip() {
+  const list = document.getElementById('session-strip-list');
+  if (list) list.style.display = list.style.display === 'none' ? '' : 'none';
+}
+
 function resumeSession(sessionId) {
   if (isRunning) return;
   lastSessionId = sessionId;
-  addMsg('system-msg', `Session ${sessionId} selected for resume.`);
+  switchPage('chat', document.querySelector('.nav-btn[onclick*="chat"]'));
+  addMsg('system-msg', 'Session selected for resume. Type your instruction.');
   document.getElementById('task-input').focus();
+  // Collapse strip after selection
+  const list = document.getElementById('session-strip-list');
+  if (list) list.style.display = 'none';
+}
+
+async function renameSession(sessionId, newName) {
+  newName = (newName || '').trim();
+  if (!newName) return;
+  try {
+    await fetch(`/api/sessions/${sessionId}/rename`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ name: newName }),
+    });
+  } catch (e) {}
 }
 
 async function deleteSession(sessionId) {
   try {
     await fetch(`/api/sessions/${sessionId}`, {method: 'DELETE'});
-    log(`Session ${sessionId} deleted`, 'ok');
+    log('Session deleted', 'ok');
     loadSessions();
   } catch (e) {}
+}
+
+async function applyFeatures() {
+  const body = {
+    heartbeat_enabled: document.getElementById('feat-heartbeat').checked,
+    heartbeat_auto_fix_on_error: document.getElementById('feat-autofix').checked,
+    validation_enabled: document.getElementById('feat-validation').checked,
+    skills_enabled: document.getElementById('feat-skills').checked,
+    skills_auto_generate: document.getElementById('feat-autogen').checked,
+  };
+  const ctx = document.getElementById('feat-context').value;
+  if (ctx) body.max_context_tokens = parseInt(ctx);
+  try {
+    const r = await fetch('/api/config/features', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(body),
+    });
+    const d = await r.json();
+    if (d.ok) log('Features updated', 'ok');
+    else log('Features error: ' + (d.error || 'unknown'), 'err');
+  } catch (e) {
+    log('Features error: ' + e.message, 'err');
+  }
+}
+
+async function applyProjectConfig() {
+  const body = {
+    project_source_dir: document.getElementById('feat-sourcedir').value,
+    project_language: document.getElementById('feat-language').value,
+    project_file_extensions: document.getElementById('feat-extensions').value,
+  };
+  try {
+    const r = await fetch('/api/config/features', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(body),
+    });
+    const d = await r.json();
+    if (d.ok) {
+      log('Project config updated', 'ok');
+      checkStatus();
+    } else {
+      log('Project error: ' + (d.error || 'unknown'), 'err');
+    }
+  } catch (e) {
+    log('Project error: ' + e.message, 'err');
+  }
+}
+
+async function applyLlmProfile() {
+  const profile = document.getElementById('cfg-llm-profile').value;
+  const status = document.getElementById('llm-profile-status');
+  try {
+    const r = await fetch('/api/config/profile', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ profile }),
+    });
+    const d = await r.json();
+    if (d.ok) {
+      log(`LLM profile: ${d.llm_profile}`, 'ok');
+      if (status) status.textContent = `Active: ${d.llm_profile}`;
+    } else {
+      log('Profile error: ' + (d.error || 'unknown'), 'err');
+    }
+  } catch (e) {
+    log('Profile error: ' + e.message, 'err');
+  }
 }
 
 async function updateBudgetConfig() {
