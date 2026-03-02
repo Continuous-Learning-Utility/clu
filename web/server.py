@@ -189,6 +189,17 @@ async def delete_session(session_id: str):
     return {"deleted": ok}
 
 
+@app.post("/api/sessions/{session_id}/rename")
+async def rename_session(session_id: str, body: dict):
+    name = (body.get("name") or "").strip()
+    if not name:
+        return JSONResponse({"error": "name is required"}, status_code=400)
+    ok = _session_mgr.rename(session_id, name)
+    if not ok:
+        return JSONResponse({"error": "Session not found"}, status_code=404)
+    return {"ok": True, "name": name}
+
+
 @app.post("/api/config/features")
 async def update_features(body: dict):
     """Update feature toggles and project settings at runtime."""

@@ -165,6 +165,7 @@ class AgentRunner:
     ) -> AgentResult:
         """Execute a task against a project, emitting events via callback."""
         session_id = self.session_mgr.generate_id()
+        self._session_name = task[:50]
 
         async def emit(event: evt.AgentEvent):
             if on_event:
@@ -178,6 +179,7 @@ class AgentRunner:
         if resume_session_id:
             prev = self.session_mgr.load(resume_session_id)
             if prev and prev.get("messages"):
+                self._session_name = prev.get("name", task[:50])
                 for msg in prev["messages"]:
                     if msg.get("role") == "system":
                         continue
@@ -435,6 +437,7 @@ class AgentRunner:
             task=task,
             budget_state=self.budget.status(),
             files_modified=self.backup.modified_files,
+            name=self._session_name,
         )
 
     def _record_outcome(self, task: str, session_id: str, success: bool) -> None:

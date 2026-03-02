@@ -64,6 +64,14 @@
         <div style="font-size:12px;color:var(--text2);">None</div>
       </div>
     </div>
+    <div id="session-strip" class="session-strip">
+      <div class="session-strip-header" onclick="toggleSessionStrip()">
+        <span>Sessions</span>
+        <span id="session-strip-count" class="badge sm">0</span>
+        <span class="session-strip-arrow">&#9662;</span>
+      </div>
+      <div id="session-strip-list" class="session-strip-list" style="display:none;"></div>
+    </div>
     <div class="input-area">
       <div class="input-row">
         <textarea id="task-input" placeholder="Describe the task for the agent... (Enter = send, Shift+Enter = new line)" rows="2"
@@ -258,12 +266,6 @@
           </div>
           <button class="btn" onclick="applyProjectConfig()">Apply</button>
         </div>
-      </section>
-
-      <!-- Sessions -->
-      <section class="config-section">
-        <h2>Sessions <button class="btn sm" onclick="loadSessions()" style="margin-left:auto;">Refresh</button></h2>
-        <div id="sessions-list" style="max-height:200px;overflow-y:auto;"></div>
       </section>
 
       <!-- Budget Limits -->
