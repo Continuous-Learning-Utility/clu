@@ -73,6 +73,7 @@ CLU/
 │   ├── decomposer.py               # TaskDecomposer (LLM-based task splitting into sub-tasks)
 │   ├── context_store.py             # ContextStore: user context items with role scopes (always/coder/reviewer/tester)
 │   ├── outcome_tracker.py           # OutcomeTracker: appends task outcomes to data/outcomes.jsonl
+│   ├── secrets.py                   # OS Keyring secret resolution (keyring → env → config)
 │   └── providers/                   # Multi-LLM provider abstraction
 │       ├── base.py                  # LLMProvider ABC + LLMResponse dataclass
 │       ├── factory.py               # create_provider(type, url, key, model)
@@ -95,6 +96,13 @@ CLU/
 │       ├── unity-support/           # Unity/C# coding guidelines (win32 only, requires Assets/)
 │       ├── todo-tracker/            # TODO/FIXME/HACK scanner across all source languages
 │       └── code-conventions/        # Generic code quality guidelines (prompt injection)
+│
+├── modules/                         # External integration plugins
+│   ├── base.py                      # BaseModule ABC, ModuleContext, ModuleManifest
+│   ├── manager.py                   # ModuleManager: 3-tier discover, start/stop lifecycle
+│   └── bundled/                     # Modules shipped with CLU
+│       ├── echo/                    # Test module (logs events)
+│       └── whatsapp/                # WhatsApp Business Cloud API (text + voice STT)
 │
 ├── tools/                           # 13 LLM tools
 │   ├── base.py                      # BaseTool abstract class (to_openai_schema)
@@ -141,10 +149,10 @@ CLU/
 │   └── backup_manager.py            # BackupManager (timestamped backup + rollback)
 │
 ├── web/                             # Web dashboard
-│   ├── server.py                    # FastAPI + WebSocket (40+ REST endpoints incl. /api/skills/*, /api/context/*)
-│   ├── index.html                   # Main HTML (9-tab panel layout + Context nav tab)
+│   ├── server.py                    # FastAPI + WebSocket (40+ REST endpoints incl. /api/skills/*, /api/context/*, /api/modules/*, /api/secrets/*)
+│   ├── index.html                   # Main HTML (10-tab panel + Modules tab)
 │   ├── css/styles.css               # Dark theme, responsive, tabs, components
-│   └── js/                          # 17 frontend modules
+│   └── js/                          # 18 frontend modules
 │       ├── utils.js                 # Globals, escHtml, formatMarkdown, copyText
 │       ├── store.js                 # ProviderConfigStore + connectionState reactive singleton
 │       ├── ui.js                    # Panel toggles, setRunning, addMsg, setBadge
@@ -161,7 +169,8 @@ CLU/
 │       ├── alerts.js                # Notification center (read/unread, badges)
 │       ├── costs.js                 # Token consumption tracking
 │       ├── skills.js                # Skills list, reload, per-skill test runner
-│       └── context.js               # Context items CRUD (scope badges, add form with scope dropdown)
+│       ├── context.js               # Context items CRUD (scope badges, add form with scope dropdown)
+│       └── modules_tab.js           # Modules list, start/stop, enable/disable
 │
 ├── unity_plugin/                    # Unity Editor integration (optional)
 │   ├── AgentBridge.cs               # EditorWindow (HTTP communication with agent)
@@ -292,6 +301,23 @@ THINK → ACT → OBSERVE → repeat → FINISH
   (think, read, write, list, search), no memory/skills/context injection,
   relaxed anti-loop threshold (15 vs 8)
 - `default`: full prompt, all tools, all injections
+
+### Secrets (OS Keyring)
+- Resolution cascade: OS Keyring → environment variable (`CLU_` prefix) → YAML value
+- Secret fields identified by suffix: `_key`, `_token`, `_secret`, `_webhook`
+- CLI: `python main.py --secret set/get/delete/list`
+- API: `GET /api/secrets` (names only), `POST/DELETE /api/secrets/{name}`
+- Config UI: "Secrets (OS Keyring)" section with Save/Delete per key
+- Cross-platform: Windows Credential Locker, macOS Keychain, Linux Secret Service
+
+### Module System
+- Plugin architecture for external integrations (receivers, notifiers, bridges)
+- `BaseModule` ABC with lifecycle: `start(ctx)` / `stop()` / `status()`
+- `ModuleContext` provides sandboxed access: task_queue, alerts, config, FastAPI app
+- `ModuleManifest` from `module.yaml` (name, type, version, config schema)
+- 3-tier discovery: bundled (`modules/bundled/`) → user (`~/.clu/modules/`) → project
+- Bundled modules: `echo` (test), `whatsapp` (WhatsApp Business Cloud API)
+- Auto-start on server launch, auto-stop on shutdown
 
 ### Loop Detection (3 levels)
 - `identical_calls`: 3 identical consecutive calls (same name + args)
@@ -440,9 +466,11 @@ See `config/profiles/` for complete examples (Unity, Python).
 | Costs | Token consumption tracking (by session, aggregated) |
 | Skills | Loaded skills list (tier badge, tools, checks), reload, per-skill tests |
 | Context | User context rules with role scopes (always/coder/reviewer/tester), add/toggle/delete |
+| Modules | External integration modules: start/stop, enable/disable, status |
 
-**Chat page** also includes a collapsible session strip (rename, resume, delete)
-and feature toggles / project settings are in the Config page.
+**Chat page** also includes a collapsible session strip (rename, resume, delete).
+**Config page** includes: LLM provider, Secrets (OS Keyring), Agent Profile, Features,
+Project settings, Budget.
 
 ### REST API (40+ endpoints)
 
@@ -501,6 +529,15 @@ GET  /api/context                List all context items
 POST /api/context                Create a context item (name, content, scope)
 PUT  /api/context/{id}           Update a context item (enabled, scope, content)
 DELETE /api/context/{id}         Delete a context item
+
+GET  /api/modules                List all modules + status
+POST /api/modules/{name}/start   Start a module
+POST /api/modules/{name}/stop    Stop a module
+POST /api/modules/{name}/toggle  Enable/disable a module
+
+GET  /api/secrets                List stored secret names (no values)
+POST /api/secrets/{name}         Store a secret in OS keyring
+DELETE /api/secrets/{name}       Remove a secret from keyring
 ```
 
 ### WebSocket
@@ -635,6 +672,7 @@ uvicorn[standard]>=0.34.0
 websockets>=14.0
 anthropic>=0.50.0       # optional, for Claude
 google-genai>=1.0.0     # optional, for Gemini
+keyring>=25.0.0         # OS credential store for secrets
 ```
 
 ## 12. Getting Started

@@ -61,11 +61,23 @@ CLU: thinks → reads existing code → plans the implementation → writes file
 - Declarative tests per skill (`skill.yaml`), CLI: `python main.py --skills test`
 - Bundled: `unity-support`, `todo-tracker`, `code-conventions`
 
+**Module System (External Integrations)**
+- Plugin architecture for receivers, notifiers, and bridges (WhatsApp, Telegram, etc.)
+- 3-tier discovery: bundled → user (`~/.clu/modules/`) → project (`.clu/modules/`)
+- Lifecycle-managed: auto-start/stop, config-driven enable/disable
+- Bundled: `echo` (test), `whatsapp` (WhatsApp Business Cloud API with voice STT)
+
 **Web Dashboard**
 - Real-time streaming via WebSocket
-- 9-tab panel: Logs, Tasks, Schedules, Heartbeat, Alerts, Memory, Costs, Skills, Context
+- 10-tab panel: Logs, Tasks, Schedules, Heartbeat, Alerts, Memory, Costs, Skills, Context, Modules
 - 40+ REST API endpoints
 - Task queue management, schedule CRUD, memory browser, skills viewer
+
+**Security**
+- OS Keyring for secrets (Windows Credential Locker / macOS Keychain / Linux Secret Service)
+- Resolution cascade: Keyring → environment variable (`CLU_` prefix) → YAML value
+- CLI: `python main.py --secret set/get/delete/list`
+- Dashboard Config page: Secrets section with per-key Save/Delete
 
 **Integrations**
 - GitHub webhooks (issues → tasks, push → auto-review)
@@ -288,7 +300,7 @@ The dashboard runs at `http://localhost:8080` and provides a 2-column layout:
 | Section | Description |
 |---------|-------------|
 | **Chat** | Real-time agent execution stream (tool calls, results, responses) |
-| **Panel** | 9-tab dashboard (Logs, Tasks, Schedules, Heartbeat, Alerts, Memory, Costs, Skills, Context) |
+| **Panel** | 10-tab dashboard (Logs, Tasks, Schedules, Heartbeat, Alerts, Memory, Costs, Skills, Context, Modules) |
 
 ### Key Capabilities
 
@@ -508,6 +520,7 @@ uvicorn[standard]>=0.34.0
 websockets>=14.0
 anthropic>=0.50.0          # optional
 google-genai>=1.0.0        # optional
+keyring>=25.0.0            # OS credential store for secrets
 ```
 
 ## Cross-Platform
