@@ -1,7 +1,7 @@
 # CLU — Architecture & Internal Reference
 
 > Exhaustive technical documentation for contributors and developers.
-> Updated: 2026-03-02
+> Updated: 2026-03-03
 
 ## 1. Overview
 
@@ -113,9 +113,10 @@ CLU/
 │
 ├── prompts/
 │   ├── system_prompt.md             # Default system prompt (THINK → ACT → OBSERVE protocol)
-│   ├── profiles/                    # Language-specific system prompts
+│   ├── profiles/                    # Language-specific + LLM-adapted system prompts
 │   │   ├── unity.md                 # Unity/C# specialized prompt
-│   │   └── generic.md              # Language-agnostic prompt
+│   │   ├── generic.md              # Language-agnostic prompt (default profile)
+│   │   └── compact.md              # Short directive prompt for small local models (compact profile)
 │   ├── roles/                       # Specialized agent role prompts
 │   │   ├── coder.md                 # Full read/write access
 │   │   ├── reviewer.md              # Read-only, structured reports
@@ -150,7 +151,7 @@ CLU/
 │       ├── logs.js                  # log(), setLogFilter()
 │       ├── provider.js              # Provider config, test, apply
 │       ├── agent.js                 # sendTask, stopAgent, rollback
-│       ├── sessions.js              # Session management (load, resume, delete)
+│       ├── sessions.js              # Session strip (load, resume, rename, delete, feature toggles)
 │       ├── websocket.js             # WebSocket connection + message handling
 │       ├── main.js                  # Status check, project setup, init
 │       ├── tasks.js                 # Task queue UI (status badges, retry/cancel)
@@ -278,14 +279,29 @@ THINK → ACT → OBSERVE → repeat → FINISH
 - Default limits: 50 iterations, 500K completion tokens, 32K context window
 - `prompt_tokens` tracked for info but don't consume budget
 
+### Context Overflow Prevention
+- `ContextOverflowError`: raised by OpenAI-compat provider on 400 errors with
+  `n_keep >= n_ctx` or `context_length_exceeded` — never retried
+- `_enforce_prompt_budget()`: trims optional prompt sections (skills → memory → context)
+  when system prompt exceeds 50% of `max_context_tokens`
+- Token estimation: conservative `len(text) // 3` (no tokenizer dependency)
+
+### LLM Profiles
+- `llm.profile: "auto"` (default): selects `compact` when `max_context_tokens <= 8192`
+- `compact`: short directive prompt (~300 tokens) with few-shot example, 5 core tools only
+  (think, read, write, list, search), no memory/skills/context injection,
+  relaxed anti-loop threshold (15 vs 8)
+- `default`: full prompt, all tools, all injections
+
 ### Loop Detection (3 levels)
 - `identical_calls`: 3 identical consecutive calls (same name + args)
 - `cycle_N`: cyclic pattern on last 12 calls (e.g., A-B-A-B)
-- `read_only_spinning`: 8+ consecutive calls without `write_file`
+- `read_only_spinning`: configurable threshold (default 8, compact profile: 15)
 
 ### Anti-loop Escalation (3 warnings)
 1. Text message asking the LLM to change approach
 2. **WRITE MODE** — remove `read_file`, `list_files`, `search_in_files`
+   (compact profile: includes concrete write_file example)
 3. Remove **all tools** — force final text response
 
 ### Task Queue (SQLite)
@@ -359,10 +375,10 @@ are now configurable fields.
 
 ```yaml
 project:
-  name: "my_project"             # Profile name
-  language: "python"             # Target language
-  file_extensions: [".py"]       # Source file extensions
-  source_dir: "src/"             # Root source directory
+  name: "generic"                # Profile name (default: generic)
+  language: "any"                # Target language (empty/any = all files)
+  file_extensions: []            # Source file extensions (empty = scan all)
+  source_dir: ""                 # Root source directory (empty = project root)
   framework: "generic"           # Framework identifier
 
 api:
@@ -370,6 +386,12 @@ api:
   base_url: "http://localhost:1234/v1"
   api_key: ""                    # Empty = env var or not needed for local
   model: "qwen/qwen3-coder-30b"
+
+llm:
+  profile: "auto"                # auto | compact | default
+                                 # auto: compact if max_context_tokens <= 8192
+                                 # compact: short prompt, 5 core tools, no memory/skills
+                                 # default: full prompt, all tools, all injections
 
 security:
   allowed_path_prefix: ""        # empty = unrestricted (blocklist only); set "Assets/" for Unity
@@ -419,6 +441,9 @@ See `config/profiles/` for complete examples (Unity, Python).
 | Skills | Loaded skills list (tier badge, tools, checks), reload, per-skill tests |
 | Context | User context rules with role scopes (always/coder/reviewer/tester), add/toggle/delete |
 
+**Chat page** also includes a collapsible session strip (rename, resume, delete)
+and feature toggles / project settings are in the Config page.
+
 ### REST API (40+ endpoints)
 
 ```
@@ -440,12 +465,15 @@ GET  /api/status                 Provider + project status
 POST /api/project                Set project path
 
 POST /api/config/provider        Configure LLM provider
+POST /api/config/profile         Switch LLM profile (auto/compact/default)
+POST /api/config/features        Toggle features (heartbeat, validation, skills…)
 GET  /api/models                 List available models
 POST /api/config/budget          Modify budget limits at runtime
 
 GET  /api/sessions               Saved sessions list
 GET  /api/sessions/{id}          Load a session
 DELETE /api/sessions/{id}        Delete a session
+POST /api/sessions/{id}/rename   Rename a session
 
 GET  /api/alerts                 List alerts
 POST /api/alerts/{id}/read       Mark alert read
