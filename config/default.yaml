@@ -16,6 +16,10 @@ llm:
   seed: 42
   max_tokens: 4096
   stream: false
+  profile: "auto"              # auto | compact | default
+                               # auto: compact if max_context_tokens <= 8192, else default
+                               # compact: short prompt, core tools only — for small local models
+                               # default: full prompt, all tools, memory/skills/context
 
 budget:
   max_iterations: 50

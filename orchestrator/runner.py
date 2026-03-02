@@ -87,12 +87,22 @@ class AgentRunner:
         self.skill_manager = skill_manager or SkillManager.empty()
         self.context_store = context_store
 
+        self._llm_profile = self._resolve_llm_profile()
+        logger.info("LLM profile: %s", self._llm_profile)
+
         self.tools = ToolRegistry()
         self.tools.register_all_defaults(enabled_tools=config.enabled_tools)
         self._setup_delegate_tool(task_queue)
         self._setup_schedules_tool(scheduler)
         self._setup_context_tool()
         self.skill_manager.register_tools(self.tools, role=self.role)
+
+        # Compact profile: keep only core tools
+        if self._llm_profile == "compact":
+            core = {"think", "read_file", "write_file", "list_files", "search_in_files"}
+            for name in list(self.tools.names):
+                if name not in core:
+                    self.tools.unregister(name)
         self.sandbox = PathValidator(
             allowed_prefix=config.allowed_path_prefix.strip("/").strip("\\"),
             blocked_prefixes=[p.strip("/").strip("\\") for p in config.blocked_prefixes],
@@ -101,7 +111,10 @@ class AgentRunner:
         self.backup = BackupManager(
             os.path.join(os.path.dirname(__file__), "..", config.backup_dir)
         )
-        self.history = MessageHistory(max_tokens=config.max_context_tokens)
+        self.history = MessageHistory(
+            max_tokens=config.max_context_tokens,
+            read_only_threshold=15 if self._llm_profile == "compact" else 8,
+        )
         self.budget = BudgetTracker(
             max_iterations=config.max_iterations,
             max_total_tokens=config.max_total_tokens,
@@ -113,6 +126,13 @@ class AgentRunner:
         self._loop_warnings = 0
         self._write_mode = False
         self._checkpoint_interval = 5  # Save checkpoint every N iterations
+
+    def _resolve_llm_profile(self) -> str:
+        """Resolve the effective LLM profile (auto/compact/default)."""
+        profile = self.config.llm_profile
+        if profile == "auto":
+            return "compact" if self.config.max_context_tokens <= 8192 else "default"
+        return profile
 
     def _setup_delegate_tool(self, task_queue):
         """Register the delegate tool and wire its queue reference."""
@@ -347,12 +367,19 @@ class AgentRunner:
                 elif self._loop_warnings >= 2:
                     self._write_mode = True
                     write_tools = ", ".join(self.tools.get_write_mode_tools())
-                    self.history.add_user(
-                        "WRITE MODE ACTIVATED. read_file, list_files, and search_in_files "
-                        f"have been REMOVED. You can ONLY use: {write_tools}. "
-                        "You have already read all the files you need. "
-                        "Use write_file NOW to implement your changes, or respond with a summary to finish."
-                    )
+                    if self._llm_profile == "compact":
+                        self.history.add_user(
+                            "WRITE MODE. You can ONLY use: think and write_file. "
+                            "Example: write_file(path='file.txt', content='your content here'). "
+                            "Do it NOW or respond with a summary to finish."
+                        )
+                    else:
+                        self.history.add_user(
+                            "WRITE MODE ACTIVATED. read_file, list_files, and search_in_files "
+                            f"have been REMOVED. You can ONLY use: {write_tools}. "
+                            "You have already read all the files you need. "
+                            "Use write_file NOW to implement your changes, or respond with a summary to finish."
+                        )
                     await emit(evt.warning("WRITE MODE — read tools removed"))
                 else:
                     self.history.add_user(
@@ -444,7 +471,21 @@ class AgentRunner:
         """Load system prompt from file and inject project context."""
         prompts_base = os.path.join(os.path.dirname(__file__), "..", self.config.prompts_dir)
 
-        # Try profile-specific → generic profile → legacy system_prompt.md
+        # Compact profile: use compact.md, skip optional injections
+        if self._llm_profile == "compact":
+            compact_path = os.path.join(prompts_base, "profiles", "compact.md")
+            if os.path.isfile(compact_path):
+                with open(compact_path, "r", encoding="utf-8") as f:
+                    base_prompt = f.read()
+            else:
+                base_prompt = (
+                    "You are an autonomous coding agent. "
+                    "Call think() before every action. Use write_file to create files. "
+                    "Respond with a text summary when done."
+                )
+            return f"{base_prompt}\n\n## Project Context\n- Project path: {self.project_path}\n"
+
+        # Default profile: full prompt cascade with all injections
         candidates = [
             os.path.join(prompts_base, "profiles", f"{self.config.project_name}.md"),
             os.path.join(prompts_base, "profiles", "generic.md"),
@@ -496,6 +537,9 @@ class AgentRunner:
     def _build_system_prompt_for_task(self, task: str) -> str:
         """Build system prompt with contextual skill injections for a specific task."""
         base = self._build_system_prompt()
+        # Compact profile: skip skill injections entirely
+        if self._llm_profile == "compact":
+            return self._enforce_prompt_budget(base)
         skill_ctx = self.skill_manager.get_prompt_injections(task)
         if skill_ctx:
             base = f"{base}\n\n{skill_ctx}"

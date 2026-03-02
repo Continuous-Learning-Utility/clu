@@ -27,6 +27,7 @@ class AgentConfig:
     temperature: float = 0
     seed: int = 42
     max_tokens: int = 4096
+    llm_profile: str = "auto"  # "auto" | "compact" | "default"
 
     # Budget settings
     max_iterations: int = 50
@@ -125,6 +126,7 @@ class AgentConfig:
             temperature=llm.get("temperature", cls.temperature),
             seed=llm.get("seed", cls.seed),
             max_tokens=llm.get("max_tokens", cls.max_tokens),
+            llm_profile=llm.get("profile", cls.llm_profile),
             max_iterations=budget.get("max_iterations", cls.max_iterations),
             max_total_tokens=budget.get("max_total_tokens", cls.max_total_tokens),
             max_context_tokens=budget.get("max_context_tokens", cls.max_context_tokens),

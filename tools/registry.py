@@ -45,6 +45,10 @@ class ToolRegistry:
         """Get a tool by name, or None if not found."""
         return self._tools.get(name)
 
+    def unregister(self, name: str):
+        """Remove a tool by name."""
+        self._tools.pop(name, None)
+
     @property
     def names(self) -> list[str]:
         """List of all registered tool names."""
