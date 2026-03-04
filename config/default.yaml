@@ -47,9 +47,9 @@ security:
   max_list_results: 200
 
 validation:
-  enabled: true
-  validator: "csharp"            # "csharp" | "none"
-  unity_dll_path: "C:/Program Files/Unity/Hub/Editor/6000.0.58f2/Editor/Data/Managed/UnityEngine"
+  enabled: false                   # Enable in language profiles (e.g. unity.yaml)
+  validator: "none"                # "csharp" | "none"
+  unity_dll_path: ""
   dotnet_path: "dotnet"
   lang_version: "9.0"
   target_framework: "netstandard2.1"
@@ -64,10 +64,11 @@ tools:
     - write_file
     - memory
     - delegate
-    - validate_csharp
-    - unity_logs
     - manage_schedules
     - manage_context
+    # Optional (enable in language profiles):
+    # - validate_csharp
+    # - unity_logs
 
 heartbeat:
   enabled: true
@@ -77,10 +78,10 @@ heartbeat:
   max_auto_tasks_per_hour: 10
   large_file_threshold: 300      # lines — flag source files exceeding this
   checks:
-    - unity_compile
     - new_files
     - todo_markers
     - large_files
+    # - unity_compile             # Enable in unity.yaml profile
 
 # notifications: (migrated to modules — see modules.discord, modules.slack, modules.desktop-notify)
 

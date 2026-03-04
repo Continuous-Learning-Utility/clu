@@ -10,9 +10,9 @@ schedules:
   - id: compile_check
     cron: "*/5 * * * *"          # every 5 minutes
     task_template: auto_fix_compile
-    enabled: true
+    enabled: false                 # enable for projects with a build step
     priority: 10
-    description: "Check for compile errors and auto-fix them"
+    description: "Check for build errors and auto-fix them"
 
   - id: daily_review
     cron: "0 9 * * 0-4"         # 9 AM weekdays (Mon-Fri)
@@ -26,11 +26,11 @@ schedules:
     task_template: generate_docs
     enabled: false
     priority: -5
-    description: "Generate XML docs for undocumented public APIs"
+    description: "Generate docs for undocumented public APIs"
 
   - id: test_generation
     cron: "0 14 * * 3"          # 2 PM on Wednesdays
     task_template: test_generation
     enabled: false
     priority: -5
-    description: "Generate NUnit tests for untested classes"
+    description: "Generate tests for untested classes"
