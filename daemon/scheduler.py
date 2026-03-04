@@ -103,6 +103,10 @@ class TaskScheduler:
         self.config_path = config_path or DEFAULT_SCHEDULES_PATH
         self.templates_dir = templates_dir or DEFAULT_TEMPLATES_DIR
 
+        # Runtime changes are saved to .local.yaml to avoid polluting git-tracked config
+        base, ext = os.path.splitext(self.config_path)
+        self._local_path = f"{base}.local{ext}"
+
         self.schedules: list[Schedule] = []
         self._last_tick: float = 0
         self._tick_interval = 60  # Check every 60s (cron is minute-resolution)
@@ -110,22 +114,22 @@ class TaskScheduler:
         self._load_config()
 
     def _load_config(self):
-        """Load schedule definitions from YAML."""
-        if not os.path.isfile(self.config_path):
-            logger.info("No schedules config at %s, scheduler idle", self.config_path)
-            return
+        """Load schedule definitions from YAML.
 
-        try:
-            with open(self.config_path, "r", encoding="utf-8") as f:
-                data = yaml.safe_load(f) or {}
-        except Exception as e:
-            logger.error("Failed to load schedules config: %s", e)
-            return
+        Loads the base config (git-tracked template), then merges with
+        the local config (runtime overrides, gitignored). Local schedules
+        override base schedules with the same ID.
+        """
+        base_items = self._load_yaml(self.config_path)
+        local_items = self._load_yaml(self._local_path)
 
-        raw_schedules = data.get("schedules", [])
+        # Merge: local overrides base by ID
+        merged = {item["id"]: item for item in base_items}
+        for item in local_items:
+            merged[item["id"]] = item
+
         self.schedules = []
-
-        for item in raw_schedules:
+        for item in merged.values():
             try:
                 sched = Schedule(
                     schedule_id=item["id"],
@@ -143,6 +147,19 @@ class TaskScheduler:
                 )
             except (KeyError, CronParseError) as e:
                 logger.error("Invalid schedule definition %s: %s", item.get("id", "?"), e)
+
+    @staticmethod
+    def _load_yaml(path: str) -> list[dict]:
+        """Load a schedules YAML file and return the list of schedule dicts."""
+        if not os.path.isfile(path):
+            return []
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                data = yaml.safe_load(f) or {}
+            return data.get("schedules", [])
+        except Exception as e:
+            logger.error("Failed to load schedules from %s: %s", path, e)
+            return []
 
     def reload(self):
         """Reload schedules from config file."""
@@ -279,7 +296,11 @@ class TaskScheduler:
         return True
 
     def _save_config(self):
-        """Persist current schedules to YAML config."""
+        """Persist current schedules to the local YAML config (gitignored).
+
+        The base config (schedules.yaml) is never modified at runtime.
+        All runtime changes go to schedules.local.yaml.
+        """
         data = {
             "schedules": [
                 {
@@ -295,11 +316,11 @@ class TaskScheduler:
             ]
         }
 
-        os.makedirs(os.path.dirname(self.config_path), exist_ok=True)
-        with open(self.config_path, "w", encoding="utf-8") as f:
+        os.makedirs(os.path.dirname(self._local_path), exist_ok=True)
+        with open(self._local_path, "w", encoding="utf-8") as f:
             yaml.dump(data, f, default_flow_style=False, sort_keys=False)
 
-        logger.info("Saved %d schedules to %s", len(self.schedules), self.config_path)
+        logger.info("Saved %d schedules to %s", len(self.schedules), self._local_path)
 
     @property
     def status(self) -> dict:
