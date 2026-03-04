@@ -177,6 +177,9 @@ async def status():
             "heartbeat_auto_fix_on_error": config.heartbeat_auto_fix_on_error,
             "skills_enabled": config.skills_enabled,
             "skills_auto_generate": config.skills_auto_generate,
+            "skills_registry_sync_enabled": config.skills_registry_sync_enabled,
+            "skills_auto_publish": config.skills_auto_publish,
+            "skills_registry_url": config.skills_registry_url,
         },
     }
 
@@ -230,6 +233,7 @@ async def update_features(body: dict):
         "heartbeat_large_file_threshold",
         "skills_enabled", "skills_auto_generate",
         "skills_registry_sync_enabled",
+        "skills_auto_publish", "skills_registry_url",
         "max_context_tokens",
     }
     updated = {}
