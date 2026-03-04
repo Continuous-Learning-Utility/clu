@@ -305,8 +305,10 @@ schedules:
         self.assertEqual(s.id, "new_one")
         self.assertEqual(len(sched.schedules), 1)
 
-        # Config file should exist now
-        self.assertTrue(os.path.isfile(self.config_path))
+        # Local config file should exist now (runtime saves go to .local.yaml)
+        base, ext = os.path.splitext(self.config_path)
+        local_path = f"{base}.local{ext}"
+        self.assertTrue(os.path.isfile(local_path))
 
     def test_add_duplicate_raises(self):
         sched = TaskScheduler(self.queue, config_path=self.config_path,
