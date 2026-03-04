@@ -183,7 +183,7 @@ CLU/
 ├── docs/                            # Documentation
 │   └── ARCHITECTURE.md              # This file
 │
-├── tests/                           # 450 unit tests (pytest)
+├── tests/                           # 480+ unit tests (pytest)
 │   ├── test_agent.py                # BudgetTracker + MessageHistory + loop detection
 │   ├── test_daemon.py               # TaskQueue + AgentDaemon + DaemonService
 │   ├── test_heartbeat.py            # All checks + HeartbeatManager
@@ -645,7 +645,7 @@ skills:
   prompt_budget: 12000       # Global max chars injected per agent run
 ```
 
-## 10. Notifications & Integrations
+## 9. Notifications & Integrations
 
 ### Notifications
 - **Desktop**: win10toast (Windows), osascript (macOS), notify-send (Linux)
@@ -657,7 +657,7 @@ skills:
 - Push events filtering source files → auto-review tasks
 - HMAC-SHA256 signature verification
 
-## 11. Dependencies
+## 10. Dependencies
 
 **Required:**
 - Python 3.13+
@@ -679,7 +679,7 @@ google-genai>=1.0.0     # optional, for Gemini
 keyring>=25.0.0         # OS credential store for secrets
 ```
 
-## 12. Getting Started
+## 11. Getting Started
 
 ```bash
 # Clone and setup
@@ -698,7 +698,7 @@ python main.py --web --config config/profiles/python.yaml
 python main.py --daemon start
 
 # Run tests
-python -m pytest tests/ -v    # 450 tests
+python -m pytest tests/ -v    # 480+ tests
 ```
 
 ---
