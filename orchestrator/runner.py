@@ -357,6 +357,9 @@ class AgentRunner:
             loop_type = self.history.detect_loop()
             if loop_type:
                 self._loop_warnings += 1
+                # read_only_spinning / duplicate_reads → skip straight to write mode
+                if loop_type in ("read_only_spinning", "duplicate_reads") and self._loop_warnings < 2:
+                    self._loop_warnings = 2
                 logger.warning("Loop detected (%s), warning #%d", loop_type, self._loop_warnings)
 
                 if self._loop_warnings >= 3:
