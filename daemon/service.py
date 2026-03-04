@@ -70,7 +70,7 @@ def _is_pid_alive(pid: int) -> bool:
 
 
 def start(config_path: str = "config/default.yaml", poll_interval: float = 5,
-          verbose: bool = False) -> dict:
+          verbose: bool = False, project: str | None = None) -> dict:
     """Start the daemon as a background subprocess.
 
     Returns {"ok": True, "pid": int} or {"ok": False, "error": str}.
@@ -84,6 +84,8 @@ def start(config_path: str = "config/default.yaml", poll_interval: float = 5,
 
     cmd = [python, daemon_script, "--config", config_path,
            "--poll-interval", str(poll_interval)]
+    if project:
+        cmd.extend(["--project", project])
     if verbose:
         cmd.append("--verbose")
 

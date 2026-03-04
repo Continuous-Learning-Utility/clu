@@ -283,6 +283,7 @@ def main():
             result = daemon_service.start(
                 config_path=args.config,
                 verbose=args.verbose,
+                project=project_path,
             )
             if result["ok"]:
                 print(f"Daemon started (PID {result['pid']})")

@@ -412,6 +412,7 @@ async def daemon_start(body: dict | None = None):
     body = body or {}
     return daemon_service.start(
         poll_interval=body.get("poll_interval", 5),
+        project=body.get("project") or get_project_path(),
     )
 
 

@@ -40,6 +40,7 @@ security:
     - ".git"
   write_blocked_prefixes:       # paths CLU can read but never write
     - ".clu"
+    - "config"
   max_file_read_size: 102400
   max_file_write_size: 51200
   max_search_results: 50
