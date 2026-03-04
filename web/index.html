@@ -258,6 +258,33 @@
             <label>Context window (tokens)</label>
             <input type="number" id="feat-context" placeholder="32000" />
           </div>
+          <div style="margin-top:12px; padding-top:10px; border-top:1px solid var(--border);">
+            <div style="font-size:10px; font-weight:600; text-transform:uppercase;
+                        letter-spacing:0.5px; color:var(--text2); margin-bottom:8px;">
+              Skills Sharing
+            </div>
+            <div class="feature-row">
+              <label>Community skill sync (pull)</label>
+              <input type="checkbox" id="feat-registry-sync" />
+            </div>
+            <div class="feature-row">
+              <label>Auto-publish generated skills</label>
+              <input type="checkbox" id="feat-auto-publish" />
+            </div>
+            <div style="font-size:10px; color:var(--text2); margin-bottom:6px;">
+              Requires GitHub Token in Secrets above.
+            </div>
+            <div>
+              <label>Registry URL</label>
+              <input type="text" id="feat-registry-url"
+                     placeholder="https://github.com/clu-community/clu-skills" />
+            </div>
+            <div class="row" style="margin-top:6px; align-items:center; gap:8px;">
+              <button class="btn sm" id="registry-sync-btn" onclick="syncRegistryNow()">Sync Now</button>
+              <span id="registry-status-text"
+                    style="font-size:10px; color:var(--text2); flex:1;"></span>
+            </div>
+          </div>
           <button class="btn" onclick="applyFeatures()">Apply</button>
         </div>
       </section>
@@ -331,6 +358,7 @@
 <script src="/js/alerts.js"></script>
 <script src="/js/costs.js"></script>
 <script src="/js/skills.js"></script>
+<script src="/js/skills-config.js"></script>
 <script src="/js/context.js"></script>
 <script src="/js/modules_tab.js"></script>
 <script src="/js/websocket.js"></script>

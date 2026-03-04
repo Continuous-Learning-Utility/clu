@@ -151,6 +151,9 @@ async function applyFeatures() {
     validation_enabled: document.getElementById('feat-validation').checked,
     skills_enabled: document.getElementById('feat-skills').checked,
     skills_auto_generate: document.getElementById('feat-autogen').checked,
+    skills_registry_sync_enabled: document.getElementById('feat-registry-sync').checked,
+    skills_auto_publish: document.getElementById('feat-auto-publish').checked,
+    skills_registry_url: (document.getElementById('feat-registry-url').value || '').trim(),
   };
   const ctx = document.getElementById('feat-context').value;
   if (ctx) body.max_context_tokens = parseInt(ctx);
@@ -241,4 +244,5 @@ async function updateBudgetConfig() {
 function initConfigPage() {
   loadSessions();
   loadSecrets();
+  loadRegistryStatus();
 }

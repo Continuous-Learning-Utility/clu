@@ -33,6 +33,8 @@ async function checkStatus() {
       setCheck('feat-validation', d.config.validation_enabled);
       setCheck('feat-skills', d.config.skills_enabled);
       setCheck('feat-autogen', d.config.skills_auto_generate);
+      setCheck('feat-registry-sync', d.config.skills_registry_sync_enabled);
+      setCheck('feat-auto-publish', d.config.skills_auto_publish);
       // Context window
       const ctxEl = document.getElementById('feat-context');
       if (ctxEl && d.config.max_context_tokens) ctxEl.placeholder = d.config.max_context_tokens;
@@ -40,6 +42,7 @@ async function checkStatus() {
       const setVal = (id, val) => { const el = document.getElementById(id); if (el && val !== undefined) el.value = val; };
       setVal('feat-sourcedir', d.config.project_source_dir || '');
       setVal('feat-language', d.config.project_language || '');
+      setVal('feat-registry-url', d.config.skills_registry_url || '');
     }
     loadSessions();
   } catch (e) {
