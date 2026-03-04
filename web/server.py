@@ -722,12 +722,12 @@ async def get_costs():
 
     sessions_list = _session_mgr.list_sessions()
     for s in sessions_list[:50]:
-        sid = s.get("session_id", "")
+        sid = s.get("id", "")
         session = _session_mgr.load(sid)
         if not session:
             continue
 
-        budget = session.get("budget_state", {})
+        budget = session.get("budget", {})
         tokens = budget.get("raw_total_tokens", 0)
         prompt_t = budget.get("raw_prompt_tokens", 0)
         completion_t = budget.get("raw_completion_tokens", 0)

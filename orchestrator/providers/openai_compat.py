@@ -68,8 +68,8 @@ class OpenAICompatProvider(LLMProvider):
                 return LLMResponse(
                     content=message.content,
                     tool_calls=tool_calls,
-                    prompt_tokens=response.usage.prompt_tokens if response.usage else 0,
-                    completion_tokens=response.usage.completion_tokens if response.usage else 0,
+                    prompt_tokens=(response.usage.prompt_tokens or 0) if response.usage else 0,
+                    completion_tokens=(response.usage.completion_tokens or 0) if response.usage else 0,
                 )
 
             except openai.APIConnectionError as e:
