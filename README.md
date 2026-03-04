@@ -78,13 +78,6 @@ CLU: thinks → reads existing code → plans the implementation → writes file
 - Resolution cascade: Keyring → environment variable (`CLU_` prefix) → YAML value
 - CLI: `python main.py --secret set/get/delete/list`
 - Dashboard Config page: Secrets section with per-key Save/Delete
-
-**Integrations**
-- GitHub webhooks (issues → tasks, push → auto-review)
-- Notifications: desktop (Windows/macOS/Linux), Discord, Slack
-- Unity Editor plugin (optional, for C# projects)
-
-**Security**
 - Configurable sandbox: optional path prefix + blocklist + write-only blocklist
 - Default: unrestricted (no prefix) with OS system dirs blocked (C:/Windows, /etc, /bin…)
 - Write-blocked dirs (`.clu/`) prevent CLU from injecting malicious skill modules
@@ -92,6 +85,11 @@ CLU: thinks → reads existing code → plans the implementation → writes file
 - Budget limits: max iterations, max tokens, context window cap
 - Context overflow prevention: auto-trims prompt sections when exceeding model context window
 - LLM profiles (`auto`/`compact`/`default`): adapts prompt size, tools, and thresholds for small local models
+
+**Integrations**
+- GitHub webhooks (issues → tasks, push → auto-review)
+- Notifications: desktop (Windows/macOS/Linux), Discord, Slack
+- Unity Editor plugin (optional, for C# projects)
 
 ## Quick Start
 
@@ -147,7 +145,7 @@ python main.py --daemon stop
 │              FastAPI + WebSocket (:8080)                │
 │  ┌────────────────────┬───────────────────────────┐    │
 │  │       Chat         │          Panel            │    │
-│  │  (Stream / Tasks)  │         (9 tabs)          │    │
+│  │  (Stream / Tasks)  │        (10 tabs)          │    │
 │  │  + Session strip   │                           │    │
 │  └────────────────────┴───────────────────────────┘    │
 └───────────────────────┬────────────────────────────────┘
@@ -438,7 +436,7 @@ For Unity/C# projects, an optional Editor plugin (`unity_plugin/AgentBridge.cs`)
 # Run all tests
 python -m pytest tests/ -v
 
-# 450 tests across 22 test files
+# 480+ tests across 22 test files
 # Covers: agent, daemon, heartbeat, integrations, memory,
 #         multi-agent, providers, resilience, sandbox,
 #         scheduler, tools, manage_schedules,
@@ -494,7 +492,7 @@ CLU/
 │   ├── roles/                 # coder / reviewer / tester
 │   └── task_templates/        # Reusable task templates
 ├── docs/                      # In-depth architecture reference
-├── tests/                     # 387 unit tests (pytest)
+├── tests/                     # 480+ unit tests (pytest)
 └── unity_plugin/              # Unity Editor integration (optional)
 ```
 

@@ -194,3 +194,59 @@ class TestMessageHistory:
             h._messages.append({"role": "tool", "tool_call_id": f"c{i}", "content": "ok"})
 
         assert h.detect_loop() is None
+
+    def test_detect_loop_duplicate_reads(self):
+        """detect_loop catches re-reading the same files."""
+        import json
+        h = MessageHistory()
+        h.set_system("system")
+        h.add_user("task")
+
+        # Read file A, file B, then re-read both → 2 duplicates
+        paths = ["src/a.py", "src/b.py", "src/a.py", "src/b.py"]
+        for i, path in enumerate(paths):
+            h._messages.append({
+                "role": "assistant", "content": "",
+                "tool_calls": [{"id": f"c{i}", "type": "function",
+                    "function": {"name": "read_file", "arguments": json.dumps({"path": path})}}],
+            })
+            h._messages.append({"role": "tool", "tool_call_id": f"c{i}", "content": "ok"})
+
+        assert h.detect_loop() == "duplicate_reads"
+
+    def test_detect_loop_duplicate_reads_one_is_ok(self):
+        """One duplicate read is not enough to trigger."""
+        import json
+        h = MessageHistory()
+        h.set_system("system")
+        h.add_user("task")
+
+        paths = ["src/a.py", "src/b.py", "src/a.py"]
+        for i, path in enumerate(paths):
+            h._messages.append({
+                "role": "assistant", "content": "",
+                "tool_calls": [{"id": f"c{i}", "type": "function",
+                    "function": {"name": "read_file", "arguments": json.dumps({"path": path})}}],
+            })
+            h._messages.append({"role": "tool", "tool_call_id": f"c{i}", "content": "ok"})
+
+        assert h.detect_loop() is None
+
+    def test_detect_loop_read_only_spinning_with_micro_write(self):
+        """read_only_spinning triggers even with one write among many reads (80% ratio)."""
+        h = MessageHistory()
+        h.set_system("system")
+        h.add_user("task")
+
+        # 9 read-only + 1 write = 90% read-only → should trigger
+        tools = ["think", "list_files", "read_file", "search_in_files",
+                 "think", "write_file", "read_file", "think", "list_files", "read_file"]
+        for i, name in enumerate(tools):
+            h._messages.append({
+                "role": "assistant", "content": "",
+                "tool_calls": [{"id": f"c{i}", "type": "function",
+                    "function": {"name": name, "arguments": f'{{"x": {i}}}'}}],
+            })
+            h._messages.append({"role": "tool", "tool_call_id": f"c{i}", "content": "ok"})
+
+        assert h.detect_loop() == "read_only_spinning"

@@ -20,9 +20,12 @@ class ManageSchedulesTool(BaseTool):
     @property
     def description(self) -> str:
         return (
-            "Manage the daemon's cron schedules. "
-            "Actions: list (show all schedules), create (add new schedule), "
-            "update (modify existing), delete (remove), toggle (enable/disable)."
+            "Manage cron schedules (stored in config/schedules.yaml). "
+            "Actions: list, create, update, delete, toggle.\n"
+            "Cron format: 'minute hour day month weekday' (0=Mon..6=Sun).\n"
+            "Each schedule fires a task_template from prompts/task_templates/automation/.\n"
+            "Requires the daemon scheduler to be wired. If unavailable, "
+            "edit config/schedules.yaml directly via write_file as a fallback."
         )
 
     @property
@@ -37,7 +40,7 @@ class ManageSchedulesTool(BaseTool):
                 },
                 "schedule_id": {
                     "type": "string",
-                    "description": "Schedule ID (required for create/update/delete/toggle).",
+                    "description": "Unique schedule ID (required for create/update/delete/toggle). Use a short snake_case name.",
                 },
                 "cron": {
                     "type": "string",
@@ -65,7 +68,11 @@ class ManageSchedulesTool(BaseTool):
 
     def execute(self, args: dict, project_path: str, sandbox, backup) -> dict:
         if self._scheduler is None:
-            return {"error": "Scheduler not available (daemon not running or not wired)"}
+            return {
+                "error": "Scheduler not available (daemon not running or not wired).",
+                "hint": "You can edit config/schedules.yaml directly using write_file to add or modify schedules. "
+                        "The daemon will pick up changes on next restart.",
+            }
 
         action = args.get("action", "")
 
@@ -96,11 +103,20 @@ class ManageSchedulesTool(BaseTool):
         template = args.get("task_template", "")
 
         if not sid:
-            return {"error": "schedule_id is required for create"}
+            return {"error": "schedule_id is required for create. Provide a unique snake_case ID."}
         if not cron:
             return {"error": "cron is required for create"}
         if not template:
             return {"error": "task_template is required for create"}
+
+        # Check for duplicate: same task_template + cron already exists
+        existing = self._scheduler.status.get("schedules", [])
+        for s in existing:
+            if s.get("task_template") == template and s.get("cron") == cron:
+                return {
+                    "error": f"A schedule with the same task_template '{template}' and cron '{cron}' already exists (id='{s['id']}'). "
+                             f"Use 'update' to modify it or 'delete' to remove it first.",
+                }
 
         try:
             sched = self._scheduler.add_schedule(

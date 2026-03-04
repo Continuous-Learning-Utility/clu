@@ -67,4 +67,8 @@ class BudgetTracker:
             "context_usage": f"{self.prompt_tokens_last}/{self.max_context_tokens} ({self.context_usage_pct:.0f}%)",
             "remaining_iterations": self.max_iterations - self.iteration,
             "remaining_tokens": self.max_total_tokens - self.total_tokens,
+            # Raw int values for /api/costs aggregation
+            "raw_completion_tokens": self.total_tokens,
+            "raw_prompt_tokens": self.total_prompt_tokens,
+            "raw_total_tokens": self.total_tokens + self.total_prompt_tokens,
         }

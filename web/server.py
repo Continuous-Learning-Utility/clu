@@ -412,6 +412,7 @@ async def daemon_start(body: dict | None = None):
     body = body or {}
     return daemon_service.start(
         poll_interval=body.get("poll_interval", 5),
+        project=body.get("project") or get_project_path(),
     )
 
 
@@ -721,15 +722,15 @@ async def get_costs():
 
     sessions_list = _session_mgr.list_sessions()
     for s in sessions_list[:50]:
-        sid = s.get("session_id", "")
+        sid = s.get("id", "")
         session = _session_mgr.load(sid)
         if not session:
             continue
 
-        budget = session.get("budget_state", {})
-        tokens = budget.get("total_tokens", 0)
-        prompt_t = budget.get("prompt_tokens", 0)
-        completion_t = budget.get("completion_tokens", 0)
+        budget = session.get("budget", {})
+        tokens = budget.get("raw_total_tokens", 0)
+        prompt_t = budget.get("raw_prompt_tokens", 0)
+        completion_t = budget.get("raw_completion_tokens", 0)
 
         total_tokens += tokens
         total_prompt += prompt_t
@@ -1284,6 +1285,8 @@ async def _run_agent_streaming(
         session_mgr=_session_mgr,
         skill_manager=get_skill_manager(),
         context_store=get_context_store(),
+        scheduler=_scheduler,
+        task_queue=_task_queue,
     )
 
     async def on_event(event: AgentEvent):

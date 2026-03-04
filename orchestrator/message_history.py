@@ -101,6 +101,27 @@ class MessageHistory:
         names.reverse()
         return names
 
+    def _recent_read_paths(self, n: int) -> list[str]:
+        """Extract file paths from the last N read_file tool calls."""
+        import json
+        paths: list[str] = []
+        for msg in reversed(self._messages):
+            if msg.get("role") == "assistant" and "tool_calls" in msg:
+                for tc in msg["tool_calls"]:
+                    if tc["function"]["name"] == "read_file":
+                        try:
+                            args = json.loads(tc["function"]["arguments"])
+                            if "path" in args:
+                                paths.append(args["path"])
+                        except (json.JSONDecodeError, TypeError):
+                            pass
+                    if len(paths) >= n:
+                        break
+            if len(paths) >= n:
+                break
+        paths.reverse()
+        return paths
+
     def detect_loop(self) -> str | None:
         """
         Detect various loop patterns. Returns a description of the loop or None.
@@ -108,7 +129,8 @@ class MessageHistory:
         Detects:
         1. Three identical tool calls (same name + args)
         2. Cyclic patterns (e.g., A-B-C-A-B-C) over last 12 calls
-        3. Excessive reads without any writes (read-only spinning)
+        3. Duplicate reads: re-reading files already read in the session
+        4. Read-only spinning: excessive reads (>=80%) without writes
         """
         # 1. Three identical calls
         recent = self.last_n_tool_calls(3)
@@ -126,12 +148,25 @@ class MessageHistory:
                     if tail == prev:
                         return f"cycle_{cycle_len}"
 
-        # 3. Read-only spinning: all recent tool calls are read/list/search with no write
+        # 3. Duplicate reads: agent re-reads files it already read
+        read_paths = self._recent_read_paths(20)
+        if len(read_paths) >= 2:
+            seen: set[str] = set()
+            dupes = 0
+            for p in read_paths:
+                if p in seen:
+                    dupes += 1
+                else:
+                    seen.add(p)
+            if dupes >= 2:
+                return "duplicate_reads"
+
+        # 4. Read-only spinning: >=80% of recent calls are read-only (tolerates micro-writes)
         window = self._read_only_threshold + 2
         names = self.last_n_tool_names(window)
         if len(names) >= self._read_only_threshold:
             read_only = [n for n in names if n in ("read_file", "list_files", "search_in_files", "think")]
-            if len(read_only) == len(names):
+            if len(read_only) >= len(names) * 0.8:
                 return "read_only_spinning"
 
         return None
