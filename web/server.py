@@ -728,9 +728,9 @@ async def get_costs():
             continue
 
         budget = session.get("budget_state", {})
-        tokens = budget.get("total_tokens", 0)
-        prompt_t = budget.get("prompt_tokens", 0)
-        completion_t = budget.get("completion_tokens", 0)
+        tokens = budget.get("raw_total_tokens", 0)
+        prompt_t = budget.get("raw_prompt_tokens", 0)
+        completion_t = budget.get("raw_completion_tokens", 0)
 
         total_tokens += tokens
         total_prompt += prompt_t
